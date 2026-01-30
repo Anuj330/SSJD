@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
-from app.core.database import Base
-from app.models.base import TimestampMixin
+from core.database import Base
+from models.base import TimestampMixin
 
 class User(Base, TimestampMixin):
     __tablename__ = "users"
@@ -12,3 +12,4 @@ class User(Base, TimestampMixin):
     password_hash = Column(String, nullable=False)
     role = Column(String, default="admin")
     is_active = Column(Boolean, default=True)
+    phone = Column(String, nullable=True) 

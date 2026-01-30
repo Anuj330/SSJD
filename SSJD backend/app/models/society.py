@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
-from app.core.database import Base
-from app.models.base import TimestampMixin
+from core.database import Base
+from models.base import TimestampMixin
 
 class Society(Base, TimestampMixin):
     __tablename__ = "societies"
@@ -10,3 +10,4 @@ class Society(Base, TimestampMixin):
     registration_number = Column(String, unique=True)
     state = Column(String)
     status = Column(String, default="active")
+    address = Column(String)

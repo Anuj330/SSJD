@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
+Base = declarative_base()
+
 load_dotenv()  # 🔑 THIS LINE IS REQUIRED
 
 DATABASE_URL = os.getenv("DATABASE_URL")
