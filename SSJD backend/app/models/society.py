@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
-from core.database import Base
-from models.base import TimestampMixin
+from ..core.database import Base
+from .base import TimestampMixin
 
 class Society(Base, TimestampMixin):
     __tablename__ = "societies"

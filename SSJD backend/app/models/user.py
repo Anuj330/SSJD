@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
-from core.database import Base
-from models.base import TimestampMixin
+from ..core.database import Base
+from .base import TimestampMixin
 
 class User(Base, TimestampMixin):
     __tablename__ = "users"
