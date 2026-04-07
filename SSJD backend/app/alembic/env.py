@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.core.database import Base, engine
-from app.models import user, society, members, member_profile, location
+from app.models import user, society, members, member_profile, location, member_account, ledger
 
 # 🔥 IMPORTANT: Import all models here so Alembic detects them
 # -----------------------------
