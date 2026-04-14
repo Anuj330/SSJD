@@ -6,3 +6,9 @@ alembic
 python-dotenv
 passlib[bcrypt]
 python-jose
+python-dateutil
+apscheduler
+weasyprint
+razorpay
+sib-api-v3-sdk
+jinja2

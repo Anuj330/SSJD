@@ -12,13 +12,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.core.database import Base, engine
-from app.models import user, society, members, member_profile, location, member_account, ledger
+from app.models import user, society, members, member_profile, location, member_account, ledger, scheme, deposit, loan, share, activity_log, payment
 
 # 🔥 IMPORTANT: Import all models here so Alembic detects them
 # -----------------------------
 # Alembic Config
 # -----------------------------
 config = context.config
+
+# Use DATABASE_URL from .env instead of hardcoded alembic.ini value
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

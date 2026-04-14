@@ -1,24 +1,79 @@
-from fastapi import Depends, HTTPException
-from jose import jwt
+from dataclasses import dataclass
+from typing import Optional
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 
-from ..core.database import get_db
-from ..core.jwt import SECRET_KEY, ALGORITHM
-from ..models.member import Member
+from app.core.database import get_db
+from app.core.jwt import SECRET_KEY, ALGORITHM
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-def get_current_member(token: str = Depends(...), db: Session = Depends(get_db)):
+@dataclass
+class CurrentUser:
+    """Unified auth context returned by get_current_account."""
+    role: str                   # "admin" or "member"
+    sub: str                    # email (admin) or username (member)
+    user_id: Optional[int] = None      # set for admins
+    member_id: Optional[int] = None    # set for members
+
+
+def get_current_account(
+    token: str = Depends(oauth2_scheme),
+) -> CurrentUser:
+    """Decode JWT and return a CurrentUser. Raises 401 on bad/missing token."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("sub") != "member":
-            raise HTTPException(status_code=403, detail="Not a member")
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is invalid or expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-        member_id = payload.get("member_id")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    role = payload.get("role")
+    sub = payload.get("sub")
+    if not role or not sub:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is missing required claims",
+        )
 
-    member = db.query(Member).filter(Member.id == member_id).first()
-    if not member:
-        raise HTTPException(status_code=401, detail="Member not found")
+    return CurrentUser(
+        role=role,
+        sub=sub,
+        user_id=payload.get("user_id"),
+        member_id=payload.get("member_id"),
+    )
 
-    return member
+
+def require_admin(
+    current: CurrentUser = Depends(get_current_account),
+) -> CurrentUser:
+    """Only allows admin users. Returns CurrentUser."""
+    if current.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current
+
+
+def require_member(
+    current: CurrentUser = Depends(get_current_account),
+) -> CurrentUser:
+    """Only allows members. Returns CurrentUser with member_id."""
+    if current.role != "member":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Member access required",
+        )
+    if not current.member_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is missing member_id",
+        )
+    return current
