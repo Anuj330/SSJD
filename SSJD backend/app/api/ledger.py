@@ -272,6 +272,10 @@ def member_passbook(
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
+    import re
+    from app.models.share import ShareTransaction
+
+    # 1) Member-owned ledger lines (deposits, etc.)
     query = (
         db.query(JournalLine, JournalEntry, Account)
         .join(JournalEntry, JournalEntry.id == JournalLine.journal_entry_id)
@@ -283,55 +287,94 @@ def member_passbook(
             )
         )
     )
-
     if from_date:
         query = query.filter(JournalEntry.created_at >= from_date)
     if to_date:
         query = query.filter(JournalEntry.created_at <= to_date)
 
-    rows = query.order_by(JournalEntry.created_at.asc()).all()
+    # Collect everything into (sort_date, row) so multiple sources merge into one passbook.
+    items = []  # (date_obj, partial_row_dict)
+
+    for line, entry, account in query.all():
+        desc = entry.description or ""
+        penalty_amount = Decimal("0")
+        is_penalty = "penalty" in desc.lower()
+        if is_penalty:
+            m = re.search(r"penalty[:\s]+([\d,.]+)", desc, re.IGNORECASE)
+            if m:
+                try:
+                    penalty_amount = Decimal(m.group(1).replace(",", ""))
+                except Exception:
+                    pass
+        tt = entry.txn_type or ""
+        is_loan = "loan" in tt.lower()
+        disp = tt
+        if is_loan:
+            disp = "Loan Repayment" if "repay" in tt.lower() else (
+                "Loan Disbursement" if "disburse" in tt.lower() else tt.replace("_", " ").title())
+        d = entry.created_at
+        items.append((d.date() if hasattr(d, "date") else d, {
+            "date": entry.created_at, "txn_ref": entry.txn_ref, "txn_type": disp,
+            "description": desc, "account_name": account.name,
+            "debit": Decimal(line.dr_amount), "credit": Decimal(line.cr_amount),
+            "penalty": penalty_amount, "is_penalty": is_penalty, "is_loan": is_loan,
+        }))
+
+    # 2) Share-money transactions (posted to the society's Share Capital account, so
+    #    they don't appear as member-owned ledger lines — merge them in here).
+    sq = db.query(ShareTransaction).filter(ShareTransaction.member_id == member_id)
+    if from_date:
+        sq = sq.filter(ShareTransaction.txn_date >= from_date.date() if hasattr(from_date, "date") else from_date)
+    if to_date:
+        sq = sq.filter(ShareTransaction.txn_date <= to_date.date() if hasattr(to_date, "date") else to_date)
+    for st in sq.all():
+        amt = Decimal(st.amount)
+        is_wd = str(st.txn_type).lower() == "withdrawal"
+        label = {"monthly_share_deposit": "Share Deposit", "withdrawal": "Share Withdrawal",
+                 "dividend": "Dividend"}.get(str(st.txn_type).lower(), str(st.txn_type))
+        items.append((st.txn_date, {
+            "date": st.txn_date, "txn_ref": st.transaction_id, "txn_type": label,
+            "description": st.remarks or "Share money", "account_name": "Share Money",
+            "debit": amt if is_wd else Decimal("0"), "credit": Decimal("0") if is_wd else amt,
+            "penalty": Decimal("0"), "is_penalty": False, "is_loan": False,
+        }))
+
+    # 3) Loan payments recorded in the dedicated loan_transactions table.
+    from app.models.loan import LoanTransaction
+    lq = db.query(LoanTransaction).filter(LoanTransaction.member_id == member_id)
+    if from_date:
+        lq = lq.filter(LoanTransaction.txn_date >= (from_date.date() if hasattr(from_date, "date") else from_date))
+    if to_date:
+        lq = lq.filter(LoanTransaction.txn_date <= (to_date.date() if hasattr(to_date, "date") else to_date))
+    for lt in lq.all():
+        items.append((lt.txn_date, {
+            "date": lt.txn_date, "txn_ref": lt.transaction_id, "txn_type": "Loan Repayment",
+            "description": lt.remarks or "Loan repayment", "account_name": "Loan",
+            "debit": Decimal(lt.amount), "credit": Decimal("0"),
+            "penalty": Decimal("0"), "is_penalty": False, "is_loan": True,
+        }))
+
+    # Merge by date (stable), then compute the running balance over the full statement.
+    items.sort(key=lambda x: (x[0] is None, x[0]))
 
     result = []
     running_balance = Decimal("0")
     total_credited = Decimal("0")
     total_debited = Decimal("0")
     total_penalty = Decimal("0")
-
-    for line, entry, account in rows:
-        dr = Decimal(line.dr_amount)
-        cr = Decimal(line.cr_amount)
-        total_credited += cr
-        total_debited += dr
-        running_balance += cr - dr
-
-        # Identify penalty — check description for "(penalty:" pattern
-        penalty_amount = Decimal("0")
-        is_penalty = False
-        desc = entry.description or ""
-        if "penalty" in desc.lower():
-            is_penalty = True
-            # Try to extract penalty amount from description like "(penalty: 50.00)"
-            import re
-            match = re.search(r"penalty[:\s]+([\d,.]+)", desc, re.IGNORECASE)
-            if match:
-                try:
-                    penalty_amount = Decimal(match.group(1).replace(",", ""))
-                except Exception:
-                    pass
-            total_penalty += penalty_amount
-
-        result.append({
-            "date": entry.created_at,
-            "txn_ref": entry.txn_ref,
-            "txn_type": entry.txn_type,
-            "description": desc,
-            "account_name": account.name,
-            "debit": dr,
-            "credit": cr,
-            "penalty": penalty_amount,
-            "is_penalty": is_penalty,
-            "running_balance": running_balance,
-        })
+    total_loan_paid = Decimal("0")
+    for _, row in items:
+        if row.get("is_loan"):
+            # Loan payments are listed but don't change the savings/share balance.
+            total_loan_paid += row["debit"] + row["credit"]
+            row["running_balance"] = running_balance
+        else:
+            total_credited += row["credit"]
+            total_debited += row["debit"]
+            total_penalty += row["penalty"]
+            running_balance += row["credit"] - row["debit"]
+            row["running_balance"] = running_balance
+        result.append(row)
 
     # Monthly summary
     monthly = {}
@@ -352,6 +395,7 @@ def member_passbook(
         "total_credited": total_credited,
         "total_debited": total_debited,
         "total_penalty": total_penalty,
+        "total_loan_paid": total_loan_paid,
         "current_balance": running_balance,
         "transaction_count": len(result),
         "rows": result,

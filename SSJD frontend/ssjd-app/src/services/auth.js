@@ -2,7 +2,7 @@ import api from './api';
 
 export const authService = {
   async adminLogin(email, password) {
-    const { data } = await api.post(`/auth/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
+    const { data } = await api.post('/auth/login', { email, password });
     return data;
   },
 

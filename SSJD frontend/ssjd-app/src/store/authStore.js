@@ -12,16 +12,17 @@ function parseJwt(token) {
 
 function getInitialState() {
   const token = localStorage.getItem('access_token');
-  if (!token) return { token: null, role: null, memberId: null, isAuthenticated: false };
+  if (!token) return { token: null, role: null, memberId: null, sub: null, isAuthenticated: false };
   const payload = parseJwt(token);
   if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
     localStorage.removeItem('access_token');
-    return { token: null, role: null, memberId: null, isAuthenticated: false };
+    return { token: null, role: null, memberId: null, sub: null, isAuthenticated: false };
   }
   return {
     token,
     role: payload.role || null,
     memberId: payload.member_id || null,
+    sub: payload.sub || null,
     isAuthenticated: true,
   };
 }
@@ -43,6 +44,7 @@ export const useAuthStore = create((set) => ({
         token: data.access_token,
         role: payload?.role || 'admin',
         memberId: null,
+        sub: payload?.sub || null,
         isAuthenticated: true,
         loading: false,
       });
@@ -64,6 +66,7 @@ export const useAuthStore = create((set) => ({
         token: data.access_token,
         role: payload?.role || 'member',
         memberId: payload?.member_id || null,
+        sub: payload?.sub || null,
         isAuthenticated: true,
         loading: false,
       });
@@ -77,7 +80,7 @@ export const useAuthStore = create((set) => ({
 
   logout: () => {
     localStorage.removeItem('access_token');
-    set({ token: null, role: null, memberId: null, isAuthenticated: false, error: null });
+    set({ token: null, role: null, memberId: null, sub: null, isAuthenticated: false, error: null });
   },
 
   clearError: () => set({ error: null }),

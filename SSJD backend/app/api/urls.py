@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import users, auth, members, member_profile, member_auth, ledger, schemes, deposits, loans, shares, reports, activity, analytics, payments, pdf_exports, email
+from app.api import users, auth, members, member_profile, member_auth, ledger, schemes, deposits, loans, shares, reports, activity, analytics, payments, pdf_exports, email, aadhaar, messaging
 
 
 router = APIRouter(prefix="/api/v1")
@@ -46,6 +46,13 @@ router.add_api_route(
     "/members/{member_id}",
     members.deactivate_member,
     methods=["DELETE"],
+    tags=["Members"],
+)
+
+router.add_api_route(
+    "/members/{member_id}/reactivate",
+    members.reactivate_member,
+    methods=["POST"],
     tags=["Members"],
 )
 
@@ -250,6 +257,7 @@ router.add_api_route("/members/{member_id}/shares", shares.get_member_shares, me
 router.add_api_route("/members/{member_id}/shares/purchase", shares.purchase_shares, methods=["POST"], tags=["Shares"])
 router.add_api_route("/members/{member_id}/shares/refund", shares.refund_shares, methods=["POST"], tags=["Shares"])
 router.add_api_route("/shares/", shares.list_all_shares, methods=["GET"], tags=["Shares"])
+router.add_api_route("/members/{member_id}/share-interest", shares.share_interest, methods=["GET"], tags=["Shares"])
 
 # RD Installments
 router.add_api_route("/deposits/{deposit_id}/rd/generate", shares.generate_rd_installments, methods=["POST"], tags=["RD"])
@@ -271,6 +279,7 @@ router.add_api_route("/receipts/{entry_id}", activity.get_receipt, methods=["GET
 
 # Analytics & Dividends
 router.add_api_route("/analytics/dashboard", analytics.dashboard_kpis, methods=["GET"], tags=["Analytics"])
+router.add_api_route("/analytics/overview", analytics.dashboard_overview, methods=["GET"], tags=["Analytics"])
 router.add_api_route("/analytics/dividend", analytics.calculate_dividend, methods=["POST"], tags=["Analytics"])
 
 # Payments (Razorpay)
@@ -279,10 +288,27 @@ router.add_api_route("/payments/verify", payments.verify_payment, methods=["POST
 router.add_api_route("/payments/webhook", payments.payment_webhook, methods=["POST"], tags=["Payments"])
 router.add_api_route("/payments/", payments.list_payments, methods=["GET"], tags=["Payments"])
 
+# Messaging (SMS / WhatsApp)
+router.add_api_route("/messaging/status", messaging.messaging_status, methods=["GET"], tags=["Messaging"])
+router.add_api_route("/messaging/contacts", messaging.list_contacts, methods=["GET"], tags=["Messaging"])
+router.add_api_route("/messaging/send", messaging.send_message, methods=["POST"], tags=["Messaging"])
+router.add_api_route("/messaging/send-bulk", messaging.send_bulk, methods=["POST"], tags=["Messaging"])
+
 # Email Notifications
 router.add_api_route("/email/members", email.list_members_with_email, methods=["GET"], tags=["Email"])
 router.add_api_route("/email/send", email.send_notification, methods=["POST"], tags=["Email"])
 router.add_api_route("/email/send-bulk", email.send_bulk_notification, methods=["POST"], tags=["Email"])
+
+# Aadhaar KYC mapping
+router.add_api_route("/aadhaar/upload", aadhaar.upload_aadhaar, methods=["POST"], tags=["Aadhaar"])
+router.add_api_route("/aadhaar/", aadhaar.list_aadhaar, methods=["GET"], tags=["Aadhaar"])
+router.add_api_route("/aadhaar/{doc_id}", aadhaar.get_aadhaar, methods=["GET"], tags=["Aadhaar"])
+router.add_api_route("/aadhaar/{doc_id}/image", aadhaar.get_aadhaar_image, methods=["GET"], tags=["Aadhaar"])
+router.add_api_route("/aadhaar/{doc_id}/link", aadhaar.link_aadhaar, methods=["POST"], tags=["Aadhaar"])
+router.add_api_route("/aadhaar/{doc_id}/approve", aadhaar.approve_aadhaar, methods=["POST"], tags=["Aadhaar"])
+router.add_api_route("/aadhaar/{doc_id}/reject", aadhaar.reject_aadhaar, methods=["POST"], tags=["Aadhaar"])
+router.add_api_route("/aadhaar/{doc_id}/defer", aadhaar.defer_aadhaar, methods=["POST"], tags=["Aadhaar"])
+router.add_api_route("/aadhaar/{doc_id}/unlink", aadhaar.unlink_aadhaar, methods=["POST"], tags=["Aadhaar"])
 
 # PDF Downloads
 router.add_api_route("/pdf/receipt/{entry_id}", pdf_exports.receipt_pdf, methods=["GET"], tags=["PDF"])

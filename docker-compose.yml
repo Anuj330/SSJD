@@ -1,0 +1,59 @@
+# Local full-stack: Postgres + FastAPI backend + React/nginx frontend.
+#   docker compose up --build
+# Frontend → http://localhost:3000   |   Backend API/docs → http://localhost:8000/docs
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ssjd_db
+    # Host 5544 → container 5432 (avoids clashing with other local Postgres instances).
+    ports:
+      - "5544:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ssjd_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./SSJD backend
+    # Pull JWT / Razorpay / Brevo secrets from the existing backend .env,
+    # then override DATABASE_URL below to point at the `db` service.
+    env_file:
+      - ./SSJD backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/ssjd_db
+      # Auto-create the first admin on startup (idempotent).
+      SEED_ADMIN: "true"
+      ADMIN_EMAIL: admin@ssjd.coop
+      ADMIN_PASSWORD: changeme123
+      AADHAAR_DIR: /data/aadhaar
+    volumes:
+      - aadhaar_data:/data/aadhaar
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./SSJD frontend/ssjd-app
+      args:
+        # Empty → axios uses relative URLs; nginx proxies them to the backend.
+        VITE_API_BASE_URL: ""
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  aadhaar_data:

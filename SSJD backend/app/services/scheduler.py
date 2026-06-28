@@ -19,33 +19,14 @@ from app.models.ledger import (
     AccountTypeEnum, OwnerTypeEnum, EntryStatusEnum,
 )
 
+from app.services.ledger_service import (
+    get_or_create_account as _get_or_create_account,
+    post_journal as _post_journal,
+)
+
 logger = logging.getLogger(__name__)
 
 scheduler = BackgroundScheduler()
-
-
-def _get_or_create_account(db, code, name, acct_type):
-    acct = db.query(Account).filter(Account.code == code).first()
-    if not acct:
-        acct = Account(code=code, name=name, type=acct_type,
-                       owner_type=OwnerTypeEnum.society, is_active=True)
-        db.add(acct)
-        db.flush()
-    return acct
-
-
-def _post_journal(db, txn_type, description, dr_id, cr_id, amount, created_by=None):
-    import uuid
-    txn_ref = f"TXN-{uuid.uuid4().hex[:12].upper()}"
-    entry = JournalEntry(txn_ref=txn_ref, txn_type=txn_type, description=description,
-                         created_by=created_by, status=EntryStatusEnum.posted)
-    db.add(entry)
-    db.flush()
-    db.add(JournalLine(journal_entry_id=entry.id, account_id=dr_id,
-                        dr_amount=amount, cr_amount=Decimal("0")))
-    db.add(JournalLine(journal_entry_id=entry.id, account_id=cr_id,
-                        dr_amount=Decimal("0"), cr_amount=amount))
-    return entry
 
 
 # ──────────────────────────────────────────────

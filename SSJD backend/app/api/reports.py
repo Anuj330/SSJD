@@ -139,7 +139,7 @@ def member_outstanding(
                  LoanAccount.status == LoanStatusEnum.active).scalar())
 
         shares = (db.query(
-            func.coalesce(func.sum(ShareHolding.total_value), 0)
+            func.coalesce(func.sum(ShareHolding.balance), 0)
         ).filter(ShareHolding.member_id == m.id).scalar())
 
         overdue_emis = (db.query(func.count(LoanRepayment.id))
@@ -154,7 +154,7 @@ def member_outstanding(
             "phone": m.phone,
             "total_deposits": Decimal(str(deposits)),
             "total_loans": Decimal(str(loans)),
-            "total_shares": Decimal(str(shares)),
+            "share_money": Decimal(str(shares)),
             "net_position": Decimal(str(deposits)) + Decimal(str(shares)) - Decimal(str(loans)),
             "overdue_emis": overdue_emis or 0,
         })

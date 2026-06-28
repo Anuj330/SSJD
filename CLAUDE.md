@@ -6,6 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SSJD (Shramik Sahkari Jaivik Darshan) is a cooperative society management system. The backend is a FastAPI application with PostgreSQL, SQLAlchemy ORM, Alembic migrations, and JWT authentication. The frontend is a React (Vite) SPA with Tailwind CSS, Zustand state management, and Axios API layer.
 
+## Quick Start (Docker)
+
+From the repository root, `docker compose up --build` starts Postgres + backend +
+frontend, runs migrations, and seeds an admin (`admin@ssjd.coop` / `changeme123`).
+Frontend → http://localhost:3000, API/docs → http://localhost:8000/docs, Postgres
+→ host port **5544**. Production Dockerfiles live in each app folder.
+
 ## Development Commands
 
 All commands run from the `SSJD backend/` directory.
@@ -14,11 +21,17 @@ All commands run from the `SSJD backend/` directory.
 # Activate virtual environment
 source linux_backend_env/bin/activate
 
-# Install dependencies
+# Install dependencies (use requirements-dev.txt to also get pytest)
 pip install -r requirements.txt
 
 # Run the development server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Create the first admin user (idempotent; chicken-and-egg bootstrap)
+python -m app.seed
+
+# Run tests (in-memory SQLite, no Postgres needed)
+pytest
 
 # Run database migrations
 cd app && alembic upgrade head
@@ -47,14 +60,25 @@ Vite dev server proxies `/api`, `/auth`, `/societies`, `/users` to `http://local
 
 ### Backend (`SSJD backend/app/`)
 
-- **`main.py`** — FastAPI app entry point. Mounts three router groups: `api_router` (`/api/v1/*`), `auth.router` (`/auth/*`), `society.router` (`/societies/*`).
+- **`main.py`** — FastAPI app entry point. Calls `setup_logging()`, registers the
+  rate limiter (slowapi) + a global exception handler, configures CORS, and mounts
+  three router groups: `api_router` (`/api/v1/*`), `auth.router` (`/auth/*`),
+  `society.router` (`/societies/*`).
 - **`api/urls.py`** — Central route registry for `/api/v1` endpoints using `router.add_api_route()`. New endpoints go here.
-- **`api/`** — Route handlers (auth, members, member_profile, member_auth, ledger, society, users).
+- **`api/`** — Route handlers: auth, members, member_profile, member_auth, ledger,
+  society, users, schemes, deposits, loans, shares, reports, analytics, payments,
+  pdf_exports, email, activity.
 - **`models/`** — SQLAlchemy ORM models. All extend `Base` from `models/base.py`.
 - **`schemas/`** — Pydantic request/response validation schemas.
-- **`services/`** — Business logic (currently `auth_service.py`).
-- **`core/`** — Configuration and utilities: database session (`database.py`), JWT helpers (`jwt.py`), password hashing (`security.py`), dependency injection (`dependencies.py`), logging (`logging.py`), middleware (`middleware.py`).
-- **`alembic/`** — Migration files. Config in `alembic.ini` at `SSJD backend/` root.
+- **`services/`** — Business logic: `ledger_service.py` (shared double-entry posting),
+  `scheduler.py` (APScheduler daily jobs), `email_service.py` (Brevo), `pdf_service.py`
+  (WeasyPrint), `auth_service.py`.
+- **`core/`** — Configuration and utilities: database session (`database.py`), JWT helpers (`jwt.py`), password hashing (`security.py`), dependency injection (`dependencies.py`), rate limiter (`limiter.py`), logging (`logging.py`), middleware (`middleware.py`).
+- **`seed.py`** — Bootstraps the first admin + default society (`python -m app.seed`).
+- **`alembic/`** — Migration files. Config in `app/alembic.ini`; `env.py` reads
+  `DATABASE_URL` from the environment.
+- **Background jobs** (`services/scheduler.py`) — daily interest accrual, overdue
+  EMI/RD detection + reminder emails, and deposit maturity checks.
 
 ### Key Domain: Double-Entry Ledger
 
@@ -66,11 +90,18 @@ The ledger system (`models/ledger.py`, `api/ledger.py`, `schemas/ledger.py`) imp
 
 ### Authentication
 
-Two auth flows:
-- **Admin/Staff**: `POST /auth/login` with email/password → JWT token. Protected routes use `get_current_user()` dependency.
-- **Members**: `POST /api/v1/member/login` with username/password → JWT token with `member_id` claim. Protected routes use `get_current_member()` dependency.
+Two auth flows (both login endpoints rate-limited to 5/minute per IP):
+- **Admin/Staff**: `POST /auth/login` with a JSON body `{email, password}` → JWT token.
+  Protected routes use the `require_admin` dependency (from `core/dependencies.py`).
+- **Members**: `POST /api/v1/member/login` with JSON `{username, password}` → JWT token
+  with `member_id` claim. Protected routes use the `require_member` dependency.
+
+Unified auth lives in `core/dependencies.py` (`get_current_account` → `require_admin` /
+`require_member`), with `role` + `user_id`/`member_id` JWT claims.
 
 Passwords are SHA256 pre-hashed then bcrypt-hashed (handles arbitrary-length inputs).
+**`bcrypt` is pinned to `<4.1`** in requirements — passlib 1.7.4 is incompatible with
+bcrypt ≥ 4.1 and hashing breaks at runtime otherwise.
 
 ## Code Conventions
 
@@ -81,7 +112,10 @@ Passwords are SHA256 pre-hashed then bcrypt-hashed (handles arbitrary-length inp
 
 ## Database
 
-PostgreSQL connection configured via `DATABASE_URL` in `SSJD backend/.env`. The DB session uses `pool_pre_ping=True` for connection health checks. Alembic `env.py` must import all models for autogenerate to detect changes.
+PostgreSQL connection configured via `DATABASE_URL` (env var; see `.env.example`).
+`.env` is gitignored — never commit it. The DB session uses `pool_pre_ping=True` for
+connection health checks. Alembic `env.py` must import all models for autogenerate to
+detect changes.
 
 ### Frontend (`SSJD frontend/ssjd-app/src/`)
 
@@ -90,9 +124,16 @@ PostgreSQL connection configured via `DATABASE_URL` in `SSJD backend/.env`. The 
 - **`store/`** — Zustand stores: `authStore.js` (login/logout/token), `themeStore.js` (dark/light mode with localStorage persistence).
 - **`components/ui/`** — Reusable primitives: Button, Input, Select, Card, Modal, DataTable (with sorting/pagination), Badge, Skeleton, EmptyState.
 - **`components/layout/`** — Sidebar (navigation with section headings), Navbar (theme toggle, logout), Layout (responsive shell with Outlet).
-- **`pages/`** — Route-based views: Dashboard, Members (list/detail/form), Profiles (list/form), Ledger (Accounts, JournalEntry, TrialBalance, Statements).
+- **`pages/`** — Route-based views: Dashboard, Members (list/detail/form/passbook),
+  Profiles, Schemes, Deposits, Loans (products/list), Shares, Reports, Analytics,
+  Payments, Ledger (Accounts, JournalEntry, TrialBalance, Statements), and member
+  self-service (MyDeposits, MyLoans, MyShares).
 - **`hooks/`** — `useApi` (generic fetch-with-state hook), `useDebounce`.
 
-## No Tests / No CI
+## Tests & CI
 
-There are currently no test files or CI/CD pipelines configured.
+- **Tests**: `pytest` from `SSJD backend/` (in-memory SQLite, no Postgres needed).
+  Coverage focuses on the ledger service (double-entry balancing, DB constraints) and
+  password hashing. Add tests under `SSJD backend/tests/`.
+- **CI**: `.github/workflows/ci.yml` runs backend pytest + frontend lint/build on push
+  and PR.

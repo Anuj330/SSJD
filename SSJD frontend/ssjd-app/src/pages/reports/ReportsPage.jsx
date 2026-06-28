@@ -173,7 +173,7 @@ function MemberOutstanding() {
                 <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{m.member_name} <span className="text-xs text-gray-400">#{m.member_id}</span></td>
                 <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400">{fmt(m.total_deposits)}</td>
                 <td className="px-4 py-3 text-right text-amber-600 dark:text-amber-400">{fmt(m.total_loans)}</td>
-                <td className="px-4 py-3 text-right text-purple-600 dark:text-purple-400">{fmt(m.total_shares)}</td>
+                <td className="px-4 py-3 text-right text-purple-600 dark:text-purple-400">{fmt(m.share_money)}</td>
                 <td className="px-4 py-3 text-right"><span className={`font-bold ${Number(m.net_position) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(m.net_position)}</span></td>
                 <td className="px-4 py-3 text-center">{m.overdue_emis > 0 ? <Badge color="red">{m.overdue_emis}</Badge> : <span className="text-gray-300">0</span>}</td>
               </tr>

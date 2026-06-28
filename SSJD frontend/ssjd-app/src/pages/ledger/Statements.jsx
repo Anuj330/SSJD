@@ -1,13 +1,17 @@
-import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Info } from 'lucide-react';
 import Card, { CardHeader, CardTitle } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
 import Badge from '../../components/ui/Badge';
 import DataTable from '../../components/ui/DataTable';
 import { ledgerService } from '../../services/ledger';
 import { membersService } from '../../services/members';
 import toast from 'react-hot-toast';
+
+// Society-level accounts aggregate every member's postings (by double-entry design).
+const SHARED_CODES = ['CASH-001', 'SHARE-CAP-001', 'LOAN-RECV-001', 'INT-EXP-001'];
 
 export default function Statements() {
   const [tab, setTab] = useState('account');
@@ -17,6 +21,16 @@ export default function Statements() {
   const [toDate, setToDate] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [accounts, setAccounts] = useState([]);
+
+  useEffect(() => {
+    ledgerService.getTrialBalance()
+      .then((tb) => setAccounts(tb?.rows ?? []))
+      .catch(() => setAccounts([]));
+  }, []);
+
+  const selectedAccount = accounts.find((a) => String(a.account_id) === String(accountId));
+  const isShared = selectedAccount && SHARED_CODES.includes(selectedAccount.account_code);
 
   const fmt = (n) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n);
@@ -122,7 +136,15 @@ export default function Statements() {
 
         <div className="flex flex-wrap items-end gap-3">
           {tab === 'account' ? (
-            <Input label="Account ID" type="number" placeholder="Enter account ID" value={accountId} onChange={(e) => setAccountId(e.target.value)} />
+            <div className="min-w-[260px]">
+              <Select
+                label="Account"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                options={accounts.map((a) => ({ value: String(a.account_id), label: `${a.account_name} (${a.account_code})` }))}
+                placeholder="Choose a ledger account…"
+              />
+            </div>
           ) : (
             <Input label="Member ID" type="number" placeholder="Enter member ID" value={memberId} onChange={(e) => setMemberId(e.target.value)} />
           )}
@@ -132,6 +154,17 @@ export default function Statements() {
             <Search className="h-4 w-4" /> Fetch
           </Button>
         </div>
+
+        {tab === 'account' && isShared && (
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300">
+            <Info className="mt-0.5 h-4 w-4 flex-none" />
+            <span>
+              <strong>{selectedAccount.account_name}</strong> is a society-wide account — it includes
+              every member's postings, so this statement shows all members. To see one member, switch to
+              <strong> Member Money Flow</strong> or open their <strong>Passbook</strong>.
+            </span>
+          </div>
+        )}
       </Card>
 
       {data && (

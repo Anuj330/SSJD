@@ -38,6 +38,7 @@ class MemberProfile(Base, TimestampMixin):
 
     # --- Personal Info ---
     name = Column(String(100), nullable=True)
+    father_name = Column(String(100), nullable=True)
     date_of_birth = Column(Date, nullable=True)
     gender = Column(Enum(GenderEnum, name="genderenum"), nullable=True)
     membership_number = Column(Integer, nullable=True)

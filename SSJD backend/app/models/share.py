@@ -1,7 +1,9 @@
 import enum
+import uuid
 
 from sqlalchemy import (
-    Boolean, Column, Integer, String, Date, DateTime, ForeignKey, Numeric, Enum, Text, CheckConstraint,
+    Boolean, Column, Integer, String, Date, DateTime, ForeignKey, Numeric, Enum, Text,
+    CheckConstraint, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -10,44 +12,54 @@ from ..core.database import Base
 from .base import TimestampMixin
 
 
-class ShareTransactionTypeEnum(enum.Enum):
-    purchase = "purchase"
-    transfer = "transfer"
-    refund = "refund"
-    dividend = "dividend"
+# Share money is plain money a member stores with the society (like a bank account).
+# Transaction types (stored as strings):
+SHARE_DEPOSIT = "monthly_share_deposit"
+SHARE_WITHDRAWAL = "withdrawal"
+SHARE_DIVIDEND = "dividend"
+
+
+def gen_share_txn_id():
+    """Human-readable unique reference for a share transaction, e.g. SHTXN-9A02FE1C3D."""
+    return f"SHTXN-{uuid.uuid4().hex[:10].upper()}"
 
 
 class ShareHolding(Base, TimestampMixin):
-    """Tracks share capital held by each member."""
+    """A member's share-money account — just a running balance."""
     __tablename__ = "share_holdings"
 
     id = Column(Integer, primary_key=True, index=True)
     member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)
-    total_shares = Column(Integer, nullable=False, default=0)
-    face_value_per_share = Column(Numeric(14, 2), nullable=False, default=10)
-    total_value = Column(Numeric(14, 2), nullable=False, default=0)
+    balance = Column(Numeric(14, 2), nullable=False, default=0)
 
     member = relationship("Member")
 
     __table_args__ = (
-        CheckConstraint("total_shares >= 0", name="ck_share_total_non_neg"),
+        CheckConstraint("balance >= 0", name="ck_share_balance_non_neg"),
     )
 
 
 class ShareTransaction(Base, TimestampMixin):
-    """Individual share purchase/transfer/refund transactions."""
+    """A single share-money movement (deposit / withdrawal / dividend)."""
     __tablename__ = "share_transactions"
 
     id = Column(Integer, primary_key=True, index=True)
+    transaction_id = Column(String(40), nullable=False, unique=True, index=True, default=gen_share_txn_id)
     member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)
-    txn_type = Column(Enum(ShareTransactionTypeEnum, name="share_txn_type_enum"), nullable=False)
-    shares = Column(Integer, nullable=False)
+    txn_type = Column(String(40), nullable=False, default=SHARE_DEPOSIT)
     amount = Column(Numeric(14, 2), nullable=False)
     txn_date = Column(Date, nullable=False)
+    reference_month = Column(Date, nullable=True)          # 1st of the contribution month
+    voucher_no = Column(String(40), nullable=True, index=True)  # source voucher (legacy imports)
     journal_entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
     remarks = Column(Text, nullable=True)
 
     member = relationship("Member")
+
+    __table_args__ = (
+        # One share entry per (member, voucher) — guards legacy re-imports.
+        UniqueConstraint("member_id", "voucher_no", name="uq_share_txn_member_voucher"),
+    )
 
 
 class RDInstallment(Base, TimestampMixin):

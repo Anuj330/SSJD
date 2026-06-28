@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     Enum,
     CheckConstraint,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -157,4 +158,40 @@ class LoanRepayment(Base, TimestampMixin):
         CheckConstraint("installment_no > 0", name="ck_repay_inst_pos"),
         CheckConstraint("principal_due >= 0", name="ck_repay_princ_due_non_neg"),
         CheckConstraint("interest_due >= 0", name="ck_repay_int_due_non_neg"),
+    )
+
+
+import uuid as _uuid
+
+
+def gen_loan_txn_id():
+    """Human-readable unique reference for a loan transaction, e.g. LNTXN-9A02FE1C3D."""
+    return f"LNTXN-{_uuid.uuid4().hex[:10].upper()}"
+
+
+class LoanTransaction(Base, TimestampMixin):
+    """Append-only loan payment record (e.g. repayment / overdue payment).
+
+    Created by the legacy transaction import (OD column). Not tied to a specific
+    loan account when the source data has no loan reference.
+    """
+    __tablename__ = "loan_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_id = Column(String(40), nullable=False, unique=True, index=True, default=gen_loan_txn_id)
+    member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)
+    loan_id = Column(Integer, ForeignKey("loan_accounts.id"), nullable=True, index=True)
+    txn_type = Column(String(40), nullable=False, default="loan_repayment")
+    amount = Column(Numeric(14, 2), nullable=False)
+    txn_date = Column(Date, nullable=False)
+    reference_month = Column(Date, nullable=True)
+    voucher_no = Column(String(40), nullable=True, index=True)
+    journal_entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
+    remarks = Column(Text, nullable=True)
+
+    member = relationship("Member")
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_loan_txn_amount_non_neg"),
+        UniqueConstraint("member_id", "voucher_no", name="uq_loan_txn_member_voucher"),
     )

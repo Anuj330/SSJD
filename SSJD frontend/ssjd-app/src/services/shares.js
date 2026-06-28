@@ -2,11 +2,15 @@ import api from './api';
 
 export const sharesService = {
   async getMemberShares(memberId) { return (await api.get(`/api/v1/members/${memberId}/shares`)).data; },
-  async purchaseShares(memberId, shares, faceValue = 10) {
-    return (await api.post(`/api/v1/members/${memberId}/shares/purchase`, null, { params: { shares, face_value: faceValue } })).data;
+  async getShareInterest(memberId, rate) {
+    const params = rate ? { rate } : {};
+    return (await api.get(`/api/v1/members/${memberId}/share-interest`, { params })).data;
   },
-  async refundShares(memberId, shares) {
-    return (await api.post(`/api/v1/members/${memberId}/shares/refund`, null, { params: { shares } })).data;
+  async addShareMoney(memberId, amount, remarks, txnDate) {
+    return (await api.post(`/api/v1/members/${memberId}/shares/purchase`, null, { params: { amount, remarks: remarks || undefined, txn_date: txnDate || undefined } })).data;
+  },
+  async withdrawShareMoney(memberId, amount, remarks) {
+    return (await api.post(`/api/v1/members/${memberId}/shares/refund`, null, { params: { amount, remarks: remarks || undefined } })).data;
   },
   async listAll() { return (await api.get('/api/v1/shares/')).data; },
 

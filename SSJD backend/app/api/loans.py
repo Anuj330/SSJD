@@ -20,6 +20,10 @@ from app.schemas.loan import (
     LoanProductCreate, LoanProductUpdate,
     LoanApplyRequest, LoanApproveRequest, LoanRepaymentRequest,
 )
+from app.services.ledger_service import (
+    get_or_create_account as _get_or_create_account,
+    post_journal as _post_journal,
+)
 
 
 # ── System account codes ──
@@ -27,29 +31,6 @@ CASH_CODE = "CASH-001"
 LOAN_INTEREST_INCOME_CODE = "LOAN-INT-INC-001"
 LOAN_PENALTY_INCOME_CODE = "LOAN-PENALTY-INC-001"
 PROCESSING_FEE_INCOME_CODE = "PROC-FEE-INC-001"
-
-
-def _get_or_create_account(db, code, name, acct_type):
-    acct = db.query(Account).filter(Account.code == code).first()
-    if not acct:
-        acct = Account(code=code, name=name, type=acct_type,
-                       owner_type=OwnerTypeEnum.society, is_active=True)
-        db.add(acct)
-        db.flush()
-    return acct
-
-
-def _post_journal(db, txn_type, description, dr_account_id, cr_account_id, amount, created_by):
-    txn_ref = f"TXN-{uuid.uuid4().hex[:12].upper()}"
-    entry = JournalEntry(txn_ref=txn_ref, txn_type=txn_type, description=description,
-                         created_by=created_by, status=EntryStatusEnum.posted)
-    db.add(entry)
-    db.flush()
-    db.add(JournalLine(journal_entry_id=entry.id, account_id=dr_account_id,
-                        dr_amount=amount, cr_amount=Decimal("0")))
-    db.add(JournalLine(journal_entry_id=entry.id, account_id=cr_account_id,
-                        dr_amount=Decimal("0"), cr_amount=amount))
-    return entry
 
 
 def _enum_val(v):
@@ -285,6 +266,21 @@ def _generate_emi_schedule(db, loan):
 #  Make Repayment
 # ───────────────────────────────────
 
+LATE_FEE_PER_MONTH = Decimal("10")  # flat ₹10 for each month (or part) an EMI is past due
+
+
+def _late_penalty(inst, as_of=None):
+    """Accrued late fee on an unpaid installment: ₹10 per month (or part) overdue."""
+    if inst.is_paid:
+        return Decimal("0")
+    today = as_of or date.today()
+    days = (today - inst.due_date).days
+    if days <= 0:
+        return Decimal("0")
+    months = (days + 29) // 30  # round up to whole months
+    return LATE_FEE_PER_MONTH * months
+
+
 def make_repayment(loan_id: int, payload: LoanRepaymentRequest,
                    db: Session = Depends(get_db),
                    current: CurrentUser = Depends(require_admin)):
@@ -307,18 +303,17 @@ def make_repayment(loan_id: int, payload: LoanRepaymentRequest,
     paid_installments = []
 
     while remaining > 0 and next_inst:
-        # Check overdue penalty
-        penalty = Decimal("0")
-        if next_inst.due_date < date.today() and product and product.late_penalty_pct > 0:
-            penalty = (next_inst.total_due * product.late_penalty_pct / Decimal("100")).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP)
+        # Accrued late fee (₹10/month overdue), minus any already collected
+        penalty = _late_penalty(next_inst)
+        if penalty > 0:
             next_inst.is_overdue = True
+        penalty_owed = max(Decimal("0"), penalty - next_inst.penalty_paid)
 
-        needed = next_inst.total_due - next_inst.total_paid + penalty
+        needed = (next_inst.total_due - next_inst.total_paid) + penalty_owed
         pay_now = min(remaining, needed)
 
         # Allocate: penalty first, then interest, then principal
-        pen_pay = min(pay_now, penalty)
+        pen_pay = min(pay_now, penalty_owed)
         pay_now -= pen_pay
         int_pay = min(pay_now, next_inst.interest_due - next_inst.interest_paid)
         pay_now -= int_pay
@@ -331,7 +326,9 @@ def make_repayment(loan_id: int, payload: LoanRepaymentRequest,
         next_inst.total_paid = next_inst.principal_paid + next_inst.interest_paid + next_inst.penalty_paid
         next_inst.paid_date = date.today()
 
-        if next_inst.total_paid >= next_inst.total_due:
+        if (next_inst.principal_paid >= next_inst.principal_due
+                and next_inst.interest_paid >= next_inst.interest_due
+                and next_inst.penalty_paid >= penalty):
             next_inst.is_paid = True
 
         paid_installments.append(next_inst.installment_no)
@@ -453,10 +450,12 @@ def get_loan_schedule(loan_id: int, db: Session = Depends(get_db),
                 "principal_paid": r.principal_paid,
                 "interest_paid": r.interest_paid,
                 "penalty_paid": r.penalty_paid,
+                "penalty": _late_penalty(r),
+                "amount_due": (r.total_due - r.total_paid) + max(Decimal("0"), _late_penalty(r) - r.penalty_paid),
                 "total_paid": r.total_paid,
                 "paid_date": r.paid_date,
                 "is_paid": r.is_paid,
-                "is_overdue": r.is_overdue,
+                "is_overdue": (not r.is_paid and r.due_date < date.today()),
             }
             for r in rows
         ],

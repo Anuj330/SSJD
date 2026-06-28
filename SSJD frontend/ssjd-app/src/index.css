@@ -1,46 +1,106 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+  --font-sans: "Plus Jakarta Sans", -apple-system, system-ui, sans-serif;
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "Space Grotesk", ui-monospace, "SF Mono", monospace;
+
+  /* Brand accent = emerald (SSJD Platform design, #0BA371). */
+  --color-primary-50: #e6f7f0;
+  --color-primary-100: #c5ecdb;
+  --color-primary-200: #92dcbd;
+  --color-primary-300: #54c79b;
+  --color-primary-400: #1bb585;
+  --color-primary-500: #0ba371;
+  --color-primary-600: #08855d;
+  --color-primary-700: #076e4d;
+  --color-primary-800: #06573d;
+  --color-primary-900: #053f2d;
+}
+
+/* ── Design tokens (SSJD Platform) — semantic, theme-aware via .dark ── */
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --surface-2: #f5f7fa;
+  --surface-3: #ffffff;
+  --border: #e6ebf1;
+  --border-2: #eef2f6;
+  --text: #0e1a2b;
+  --text-2: #5a6675;
+  --text-3: #94a0ae;
+  --navy: #0e1a2b;
+  --navy-2: #16243a;
+  --accent: #0ba371;
+  --accent-2: #08855d;
+  --accent-soft: #e4f6ee;
+  --debit: #e5484d;
+  --debit-soft: #fdecec;
+  --credit: #0ba371;
+  --credit-soft: #e4f6ee;
+  --amber: #d98e04;
+  --amber-soft: #fbf1d8;
+  --blue: #2f6fed;
+  --blue-soft: #e7effe;
+  --shadow: 0 1px 2px rgba(16, 30, 54, 0.04), 0 6px 18px rgba(16, 30, 54, 0.05);
+  --shadow-lg: 0 12px 40px rgba(16, 30, 54, 0.16);
+}
+.dark {
+  --bg: #070b12;
+  --surface: #0f1722;
+  --surface-2: #0b131d;
+  --surface-3: #141e2b;
+  --border: #1d2836;
+  --border-2: #172230;
+  --text: #e9eef4;
+  --text-2: #93a1b2;
+  --text-3: #5d6b7c;
+  --navy: #0b121c;
+  --navy-2: #0f1925;
+  --accent: #23d29a;
+  --accent-2: #1bb585;
+  --accent-soft: #0e251d;
+  --debit: #f2555a;
+  --debit-soft: #2a1518;
+  --credit: #23d29a;
+  --credit-soft: #0e251d;
+  --amber: #f0b429;
+  --amber-soft: #2a2310;
+  --blue: #5a8df8;
+  --blue-soft: #111e33;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
 
 @layer base {
   body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
     @apply antialiased transition-colors duration-200;
   }
 
-  * {
-    @apply border-gray-200 dark:border-gray-800;
+  /* Display / numeric face — Space Grotesk, tabular figures (ledger feel). */
+  .num {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
   }
+  .font-display { font-family: var(--font-display); }
+
+  ::selection { background: var(--accent); color: #fff; }
 }
 
 @layer components {
-  .animate-fade-in {
-    animation: fadeIn 0.2s ease-out;
-  }
-  .animate-slide-in {
-    animation: slideIn 0.2s ease-out;
-  }
+  .animate-fade-in { animation: fadeIn 0.2s ease-out; }
+  .animate-slide-in { animation: slideIn 0.2s ease-out; }
+  .animate-fade-up { animation: fadeUp 0.22s ease both; }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

@@ -1,10 +1,11 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.core.database import get_db
 from app.core.security import verify_password, hash_password
 from app.core.jwt import create_access_token
+from app.core.limiter import limiter
 from app.core.dependencies import CurrentUser, require_admin
 from app.models.member_account import MemberAccount
 from app.models.members import Member
@@ -46,7 +47,8 @@ def member_register(
     }
 
 
-def member_login(payload: MemberLoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def member_login(request: Request, payload: MemberLoginRequest, db: Session = Depends(get_db)):
     account = (
         db.query(MemberAccount)
         .filter(MemberAccount.username == payload.username)

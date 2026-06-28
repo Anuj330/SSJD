@@ -1,8 +1,14 @@
 import api from './api';
 
 export const membersService = {
-  async list() {
-    const { data } = await api.get('/api/v1/members/');
+  async list(status) {
+    const params = status ? { status } : {};
+    const { data } = await api.get('/api/v1/members/', { params });
+    return data;
+  },
+
+  async reactivate(memberId) {
+    const { data } = await api.post(`/api/v1/members/${memberId}/reactivate`);
     return data;
   },
 

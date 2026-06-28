@@ -1,11 +1,14 @@
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import MembersList from './pages/members/MembersList';
 import MemberDetail from './pages/members/MemberDetail';
 import ProfilesList from './pages/profiles/ProfilesList';
+import AadhaarMapping from './pages/aadhaar/AadhaarMapping';
+import MessagingPage from './pages/messaging/MessagingPage';
 import Accounts from './pages/ledger/Accounts';
 import JournalEntry from './pages/ledger/JournalEntry';
 import TrialBalance from './pages/ledger/TrialBalance';
@@ -25,6 +28,7 @@ import MyShares from './pages/member/MyShares';
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route
@@ -43,6 +47,8 @@ export default function App() {
         <Route path="my-loans" element={<MyLoans />} />
         <Route path="my-shares" element={<MyShares />} />
         <Route path="profiles" element={<ProfilesList />} />
+        <Route path="aadhaar" element={<AadhaarMapping />} />
+        <Route path="messaging" element={<MessagingPage />} />
         <Route path="schemes" element={<SchemesList />} />
         <Route path="deposits" element={<DepositsList />} />
         <Route path="loan-products" element={<LoanProducts />} />
@@ -57,5 +63,6 @@ export default function App() {
         <Route path="ledger/statements" element={<Statements />} />
       </Route>
     </Routes>
+    </ErrorBoundary>
   );
 }

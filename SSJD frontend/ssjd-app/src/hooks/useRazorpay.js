@@ -10,14 +10,22 @@ export function useRazorpay() {
   const [loading, setLoading] = useState(false);
 
   const pay = async (purpose, entityId, amount, onSuccess) => {
-    if (!window.Razorpay) {
-      toast.error('Payment gateway not loaded. Please refresh the page.');
-      return;
-    }
-
     setLoading(true);
     try {
       const order = await paymentsService.createOrder(purpose, entityId, amount);
+
+      // Mock/test mode — no live gateway: confirm the order directly.
+      if (order.mock) {
+        const result = await paymentsService.verifyPayment(order.razorpay_order_id, 'mock_payment', 'mock_signature');
+        toast.success(result.message || 'Payment successful (test mode)');
+        onSuccess?.();
+        return;
+      }
+
+      if (!window.Razorpay) {
+        toast.error('Payment gateway not loaded. Please refresh the page.');
+        return;
+      }
 
       const options = {
         key: order.razorpay_key_id,

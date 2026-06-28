@@ -13,7 +13,7 @@ from app.core.dependencies import CurrentUser, require_admin
 from app.models.members import Member
 from app.models.deposit import DepositAccount, DepositStatusEnum
 from app.models.loan import LoanAccount, LoanStatusEnum, LoanRepayment
-from app.models.share import ShareHolding, ShareTransaction, ShareTransactionTypeEnum
+from app.models.share import ShareHolding, ShareTransaction, SHARE_DIVIDEND
 from app.models.ledger import (
     Account, JournalEntry, JournalLine,
     AccountTypeEnum, OwnerTypeEnum, EntryStatusEnum,
@@ -77,7 +77,7 @@ def dashboard_kpis(
 
     # Share capital
     total_share_capital = db.query(
-        func.coalesce(func.sum(ShareHolding.total_value), 0)
+        func.coalesce(func.sum(ShareHolding.balance), 0)
     ).scalar()
 
     # Schemes
@@ -107,6 +107,58 @@ def dashboard_kpis(
     }
 
 
+def dashboard_overview(
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(require_admin),
+):
+    """Real time-series + recent activity for the dashboard charts/lists."""
+    from sqlalchemy import text
+
+    # Monthly share-money collections (last 12 months with data)
+    coll = db.execute(text(
+        "SELECT to_char(date_trunc('month', COALESCE(reference_month, txn_date)),'YYYY-MM') m, "
+        "       round(SUM(amount),2) a "
+        "FROM share_transactions WHERE txn_type = 'monthly_share_deposit' "
+        "GROUP BY 1 ORDER BY 1"
+    )).all()
+    monthly_collections = [{"month": m, "amount": float(a)} for m, a in coll][-12:]
+
+    # Member growth — cumulative members by joining month
+    grow = db.execute(text(
+        "SELECT to_char(date_trunc('month', date_of_joining),'YYYY-MM') m, COUNT(*) c "
+        "FROM member_profiles WHERE date_of_joining IS NOT NULL GROUP BY 1 ORDER BY 1"
+    )).all()
+    member_growth, running = [], 0
+    for m, c in grow:
+        running += int(c)
+        member_growth.append({"month": m, "total": running})
+    member_growth = member_growth[-12:]
+
+    # Recent transactions (share money)
+    recent = db.execute(text(
+        "SELECT m.name, st.amount, st.txn_type, st.txn_date, st.voucher_no "
+        "FROM share_transactions st JOIN members m ON m.id = st.member_id "
+        "ORDER BY st.id DESC LIMIT 8"
+    )).all()
+    recent_transactions = [
+        {"name": n, "amount": float(a), "txn_type": t, "txn_date": str(d), "voucher_no": v}
+        for n, a, t, d, v in recent
+    ]
+
+    # Recent members
+    newm = db.execute(text(
+        "SELECT name, membership_number FROM member_profiles ORDER BY id DESC LIMIT 6"
+    )).all()
+    recent_members = [{"name": n, "acno": a} for n, a in newm]
+
+    return {
+        "monthly_collections": monthly_collections,
+        "member_growth": member_growth,
+        "recent_transactions": recent_transactions,
+        "recent_members": recent_members,
+    }
+
+
 def calculate_dividend(
     dividend_rate: Decimal = Query(gt=0, description="Dividend percentage on share value"),
     financial_year: str = Query(description="e.g. 2025-26"),
@@ -117,7 +169,7 @@ def calculate_dividend(
     """Calculate (and optionally post) dividends for all shareholders."""
     holdings = (db.query(ShareHolding, Member.name)
                 .join(Member, Member.id == ShareHolding.member_id)
-                .filter(ShareHolding.total_shares > 0)
+                .filter(ShareHolding.balance > 0)
                 .all())
 
     if not holdings:
@@ -127,15 +179,14 @@ def calculate_dividend(
     total_dividend = Decimal("0")
 
     for holding, member_name in holdings:
-        div_amount = (holding.total_value * dividend_rate / Decimal("100")).quantize(
+        div_amount = (holding.balance * dividend_rate / Decimal("100")).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP)
         total_dividend += div_amount
 
         entry_data = {
             "member_id": holding.member_id,
             "member_name": member_name,
-            "shares": holding.total_shares,
-            "share_value": holding.total_value,
+            "share_balance": holding.balance,
             "dividend_rate": dividend_rate,
             "dividend_amount": div_amount,
         }
@@ -152,8 +203,8 @@ def calculate_dividend(
 
             db.add(ShareTransaction(
                 member_id=holding.member_id,
-                txn_type=ShareTransactionTypeEnum.dividend,
-                shares=0, amount=div_amount, txn_date=date.today(),
+                txn_type=SHARE_DIVIDEND,
+                amount=div_amount, txn_date=date.today(),
                 journal_entry_id=entry.id,
                 remarks=f"Dividend {financial_year} @ {dividend_rate}%",
             ))

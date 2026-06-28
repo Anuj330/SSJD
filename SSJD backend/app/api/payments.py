@@ -3,6 +3,7 @@
 import os
 import hmac
 import hashlib
+import uuid
 from decimal import Decimal
 
 from fastapi import Depends, HTTPException, Query, Request
@@ -17,9 +18,15 @@ RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 
 
+def _is_mock() -> bool:
+    """Mock mode when Razorpay isn't configured, or PAYMENTS_MOCK is set —
+    lets the full payment flow run end-to-end without a live gateway."""
+    if os.getenv("PAYMENTS_MOCK", "").lower() in ("1", "true", "yes"):
+        return True
+    return not RAZORPAY_KEY_ID or RAZORPAY_KEY_ID in ("rzp_test_REPLACE_ME", "")
+
+
 def _get_razorpay_client():
-    if not RAZORPAY_KEY_ID or RAZORPAY_KEY_ID == "rzp_test_REPLACE_ME":
-        raise HTTPException(503, "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env")
     import razorpay
     return razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
@@ -31,54 +38,45 @@ def create_payment_order(
     db: Session = Depends(get_db),
     current: CurrentUser = Depends(get_current_account),
 ):
-    """Create a Razorpay order for online payment."""
+    """Create a payment order (real Razorpay order, or a mock order in test mode)."""
     member_id = current.member_id
     if current.role == "admin":
         member_id = entity_id  # admin creating on behalf — entity_id doubles as context
-
     if not member_id:
         raise HTTPException(400, "Member context required")
 
-    client = _get_razorpay_client()
-
-    # Razorpay expects amount in paise (smallest currency unit)
     amount_paise = int(amount * 100)
+    mock = _is_mock()
 
-    order_data = {
-        "amount": amount_paise,
-        "currency": "INR",
-        "notes": {
-            "purpose": purpose,
-            "entity_id": str(entity_id),
-            "member_id": str(member_id),
-        },
-    }
-
-    try:
-        rz_order = client.order.create(data=order_data)
-    except Exception as e:
-        raise HTTPException(502, f"Razorpay order creation failed: {str(e)}")
+    if mock:
+        order_id = f"order_mock_{uuid.uuid4().hex[:18]}"
+    else:
+        try:
+            rz_order = _get_razorpay_client().order.create(data={
+                "amount": amount_paise, "currency": "INR",
+                "notes": {"purpose": purpose, "entity_id": str(entity_id), "member_id": str(member_id)},
+            })
+            order_id = rz_order["id"]
+        except Exception as e:
+            raise HTTPException(502, f"Razorpay order creation failed: {str(e)}")
 
     payment = PaymentOrder(
-        member_id=member_id,
-        purpose=purpose,
-        entity_id=entity_id,
-        amount=amount,
-        razorpay_order_id=rz_order["id"],
-        status=PaymentStatusEnum.created,
+        member_id=member_id, purpose=purpose, entity_id=entity_id, amount=amount,
+        razorpay_order_id=order_id, status=PaymentStatusEnum.created,
     )
     db.add(payment)
     db.commit()
     db.refresh(payment)
 
     return {
-        "order_id": rz_order["id"],
-        "amount": amount_paise,
+        "razorpay_order_id": order_id,
+        "amount_paise": amount_paise,
         "currency": "INR",
-        "key_id": RAZORPAY_KEY_ID,
+        "razorpay_key_id": RAZORPAY_KEY_ID,
         "payment_record_id": payment.id,
         "purpose": purpose,
         "entity_id": entity_id,
+        "mock": mock,
     }
 
 
@@ -100,18 +98,18 @@ def verify_payment(
     if payment.status == PaymentStatusEnum.paid:
         return {"message": "Payment already verified", "status": "paid"}
 
-    # Verify signature
-    message = f"{razorpay_order_id}|{razorpay_payment_id}"
-    expected_sig = hmac.new(
-        RAZORPAY_KEY_SECRET.encode(),
-        message.encode(),
-        hashlib.sha256,
-    ).hexdigest()
-
-    if expected_sig != razorpay_signature:
-        payment.status = PaymentStatusEnum.failed
-        db.commit()
-        raise HTTPException(400, "Payment signature verification failed")
+    # Mock orders skip signature verification (test mode, no live gateway).
+    if not razorpay_order_id.startswith("order_mock_"):
+        message = f"{razorpay_order_id}|{razorpay_payment_id}"
+        expected_sig = hmac.new(
+            RAZORPAY_KEY_SECRET.encode(),
+            message.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+        if expected_sig != razorpay_signature:
+            payment.status = PaymentStatusEnum.failed
+            db.commit()
+            raise HTTPException(400, "Payment signature verification failed")
 
     payment.razorpay_payment_id = razorpay_payment_id
     payment.razorpay_signature = razorpay_signature
@@ -121,6 +119,9 @@ def verify_payment(
     result = _process_payment(db, payment, current)
 
     db.commit()
+
+    _notify_payment(db, payment)
+
     return {
         "message": "Payment verified and processed",
         "status": "paid",
@@ -128,6 +129,27 @@ def verify_payment(
         "amount": payment.amount,
         **result,
     }
+
+
+def _notify_payment(db, payment):
+    """Best-effort WhatsApp/SMS confirmation to the member (never blocks the payment)."""
+    try:
+        from app.services.notify_service import send_whatsapp
+        from app.models.member_profile import MemberProfile
+        mem = db.query(Member).filter(Member.id == payment.member_id).first()
+        prof = db.query(MemberProfile).filter(MemberProfile.member_id == payment.member_id).first()
+        phone = (mem.phone if mem else None) or (prof.phone_number if prof else None)
+        if not (mem and phone):
+            return
+        label = {
+            "share_purchase": "share money", "loan_repayment": "loan EMI",
+            "deposit": "deposit", "rd_installment": "RD installment",
+        }.get(payment.purpose, payment.purpose)
+        msg = (f"Hi {mem.name}, SSJD Cooperative received your {label} payment of "
+               f"Rs {payment.amount}. Thank you.")
+        send_whatsapp(phone, msg)
+    except Exception:
+        pass
 
 
 def _process_payment(db, payment: PaymentOrder, current: CurrentUser) -> dict:
@@ -195,6 +217,39 @@ def _process_payment(db, payment: PaymentOrder, current: CurrentUser) -> dict:
 
         payment.journal_entry_id = entry.id
         return {"outstanding": str(loan.outstanding_principal)}
+
+    elif payment.purpose == "share_purchase":
+        # Online monthly share-money deposit.
+        from app.models.share import ShareHolding, ShareTransaction, SHARE_DEPOSIT, gen_share_txn_id
+        from app.services.ledger_service import get_or_create_account, post_journal
+        member = db.query(Member).filter(Member.id == payment.member_id).first()
+        holding = db.query(ShareHolding).filter(ShareHolding.member_id == payment.member_id).first()
+        if not holding:
+            holding = ShareHolding(member_id=payment.member_id, balance=Decimal("0"))
+            db.add(holding); db.flush()
+        cash = get_or_create_account(db, CASH_ACCOUNT_CODE, "Cash / Bank", AccountTypeEnum.asset)
+        share_cap = get_or_create_account(db, "SHARE-CAP-001", "Share Capital", AccountTypeEnum.equity)
+        entry = post_journal(db, SHARE_DEPOSIT, f"Online share money from {member.name if member else payment.member_id}",
+                             cash.id, share_cap.id, payment.amount, current.user_id)
+        holding.balance += payment.amount
+        db.add(ShareTransaction(
+            transaction_id=gen_share_txn_id(), member_id=payment.member_id, txn_type=SHARE_DEPOSIT,
+            amount=payment.amount, txn_date=date.today(), journal_entry_id=entry.id,
+            remarks="Online payment",
+        ))
+        payment.journal_entry_id = entry.id
+        return {"new_balance": str(holding.balance)}
+
+    elif payment.purpose == "rd_installment":
+        deposit = db.query(DepositAccount).filter(DepositAccount.id == payment.entity_id).first()
+        if not deposit or deposit.status != DepositStatusEnum.active:
+            return {"warning": "RD account not found or inactive"}
+        cash = _get_or_create_system_account(db, CASH_ACCOUNT_CODE, "Cash / Bank", AccountTypeEnum.asset)
+        entry = _post_journal(db, "rd_installment", f"Online RD installment for {deposit.account_number}",
+                              cash.id, deposit.ledger_account_id, payment.amount, current.user_id)
+        deposit.current_balance += payment.amount
+        payment.journal_entry_id = entry.id
+        return {"new_balance": str(deposit.current_balance)}
 
     return {}
 

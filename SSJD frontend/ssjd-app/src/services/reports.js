@@ -31,6 +31,7 @@ export const reportsService = {
 
   // Analytics
   async dashboardKPIs() { return (await api.get('/api/v1/analytics/dashboard')).data; },
+  async dashboardOverview() { return (await api.get('/api/v1/analytics/overview')).data; },
   async calculateDividend(rate, year, post = false) {
     return (await api.post('/api/v1/analytics/dividend', null, {
       params: { dividend_rate: rate, financial_year: year, post_entries: post }

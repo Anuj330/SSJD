@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 import uuid
 
@@ -8,7 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_admin, get_current_account
-from app.models.share import ShareHolding, ShareTransaction, ShareTransactionTypeEnum, RDInstallment
+from app.models.share import (
+    ShareHolding, ShareTransaction, RDInstallment,
+    SHARE_DEPOSIT, SHARE_WITHDRAWAL, gen_share_txn_id,
+)
 from app.models.deposit import DepositAccount, DepositStatusEnum
 from app.models.scheme import Scheme, SchemeTypeEnum
 from app.models.ledger import (
@@ -49,92 +52,175 @@ def _post_journal(db, txn_type, description, dr_id, cr_id, amount, created_by):
 #  Share Capital
 # ───────────────────────────────────
 
-def purchase_shares(member_id: int, shares: int = Query(gt=0),
-                    face_value: Decimal = Query(default=Decimal("10")),
+def purchase_shares(member_id: int, amount: Decimal = Query(gt=0),
+                    remarks: str | None = Query(default=None),
+                    txn_date: str | None = Query(default=None, description="Deposit date YYYY-MM-DD (default today)"),
                     db: Session = Depends(get_db),
                     current: CurrentUser = Depends(require_admin)):
+    """Record a member's monthly share-money deposit."""
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
         raise HTTPException(404, "Member not found")
 
-    amount = Decimal(str(shares)) * face_value
+    d = date.today()
+    if txn_date:
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                d = datetime.strptime(txn_date.strip(), fmt).date()
+                break
+            except ValueError:
+                continue
+    ref_month = date(d.year, d.month, 1)
 
     holding = db.query(ShareHolding).filter(ShareHolding.member_id == member_id).first()
     if not holding:
-        holding = ShareHolding(member_id=member_id, face_value_per_share=face_value)
+        holding = ShareHolding(member_id=member_id, balance=Decimal("0"))
         db.add(holding)
         db.flush()
 
-    # Journal: Dr Cash, Cr Share Capital (equity)
+    # Journal: Dr Cash, Cr Share Capital (money received and held for the member)
     cash = _get_or_create_account(db, CASH_CODE, "Cash / Bank", AccountTypeEnum.asset)
     share_cap = _get_or_create_account(db, SHARE_CAPITAL_CODE, "Share Capital", AccountTypeEnum.equity)
-    entry = _post_journal(db, "share_purchase",
-                          f"Share purchase by {member.name} ({shares} shares)",
+    entry = _post_journal(db, SHARE_DEPOSIT,
+                          f"Share money deposit by {member.name}",
                           cash.id, share_cap.id, amount, current.user_id)
 
-    holding.total_shares += shares
-    holding.total_value += amount
+    holding.balance += amount
 
+    txn_id = gen_share_txn_id()
     db.add(ShareTransaction(
-        member_id=member_id, txn_type=ShareTransactionTypeEnum.purchase,
-        shares=shares, amount=amount, txn_date=date.today(),
-        journal_entry_id=entry.id,
+        transaction_id=txn_id, member_id=member_id, txn_type=SHARE_DEPOSIT,
+        amount=amount, txn_date=d, reference_month=ref_month,
+        journal_entry_id=entry.id, remarks=(remarks or None),
     ))
 
     db.commit()
-    return {"message": f"{shares} shares purchased", "total_shares": holding.total_shares,
-            "total_value": holding.total_value}
+    _notify_share_deposit(db, member, amount)
+    return {"message": "Share money deposited", "transaction_id": txn_id, "balance": holding.balance}
 
 
-def refund_shares(member_id: int, shares: int = Query(gt=0),
+def _notify_share_deposit(db, member, amount):
+    """Best-effort WhatsApp confirmation for a share-money deposit (never blocks)."""
+    try:
+        from app.services.notify_service import send_whatsapp
+        from app.models.member_profile import MemberProfile
+        prof = db.query(MemberProfile).filter(MemberProfile.member_id == member.id).first()
+        phone = (member.phone if member else None) or (prof.phone_number if prof else None)
+        if not (member and phone):
+            return
+        msg = (f"Hi {member.name}, SSJD Cooperative received your share money "
+               f"deposit of Rs {amount}. Thank you.")
+        send_whatsapp(phone, msg)
+    except Exception:
+        pass
+
+
+def refund_shares(member_id: int, amount: Decimal = Query(gt=0),
+                  remarks: str | None = Query(default=None),
                   db: Session = Depends(get_db),
                   current: CurrentUser = Depends(require_admin)):
+    """Withdraw money from a member's share-money account."""
     holding = db.query(ShareHolding).filter(ShareHolding.member_id == member_id).first()
-    if not holding or holding.total_shares < shares:
-        raise HTTPException(400, "Insufficient shares")
+    if not holding or holding.balance < amount:
+        raise HTTPException(400, "Insufficient balance")
 
     member = db.query(Member).filter(Member.id == member_id).first()
-    amount = Decimal(str(shares)) * holding.face_value_per_share
 
     cash = _get_or_create_account(db, CASH_CODE, "Cash / Bank", AccountTypeEnum.asset)
     share_cap = _get_or_create_account(db, SHARE_CAPITAL_CODE, "Share Capital", AccountTypeEnum.equity)
-    entry = _post_journal(db, "share_refund",
-                          f"Share refund for {member.name} ({shares} shares)",
+    entry = _post_journal(db, SHARE_WITHDRAWAL,
+                          f"Share money withdrawal for {member.name}",
                           share_cap.id, cash.id, amount, current.user_id)
 
-    holding.total_shares -= shares
-    holding.total_value -= amount
+    holding.balance -= amount
 
+    txn_id = gen_share_txn_id()
     db.add(ShareTransaction(
-        member_id=member_id, txn_type=ShareTransactionTypeEnum.refund,
-        shares=-shares, amount=amount, txn_date=date.today(),
-        journal_entry_id=entry.id,
+        transaction_id=txn_id, member_id=member_id, txn_type=SHARE_WITHDRAWAL,
+        amount=amount, txn_date=date.today(),
+        journal_entry_id=entry.id, remarks=(remarks or None),
     ))
 
     db.commit()
-    return {"message": f"{shares} shares refunded", "total_shares": holding.total_shares}
+    return {"message": "Share money withdrawn", "transaction_id": txn_id, "balance": holding.balance}
 
 
 def get_member_shares(member_id: int, db: Session = Depends(get_db),
                       current: CurrentUser = Depends(get_current_account)):
     if current.role == "member" and current.member_id != member_id:
-        raise HTTPException(403, "You can only view your own shares")
+        raise HTTPException(403, "You can only view your own share money")
 
     holding = db.query(ShareHolding).filter(ShareHolding.member_id == member_id).first()
     txns = (db.query(ShareTransaction)
             .filter(ShareTransaction.member_id == member_id)
-            .order_by(ShareTransaction.txn_date.desc()).all())
+            .order_by(ShareTransaction.txn_date.desc(), ShareTransaction.id.desc()).all())
 
     return {
         "member_id": member_id,
-        "total_shares": holding.total_shares if holding else 0,
-        "face_value_per_share": holding.face_value_per_share if holding else 10,
-        "total_value": holding.total_value if holding else 0,
+        "balance": holding.balance if holding else 0,
         "transactions": [
-            {"id": t.id, "txn_type": t.txn_type.value, "shares": t.shares,
-             "amount": t.amount, "txn_date": t.txn_date, "remarks": t.remarks}
+            {"id": t.id, "transaction_id": t.transaction_id, "txn_type": t.txn_type,
+             "amount": t.amount, "txn_date": t.txn_date, "created_at": t.created_at,
+             "remarks": t.remarks}
             for t in txns
         ],
+    }
+
+
+SHARE_INTEREST_RATE = Decimal("6")  # % per annum, society policy
+
+
+def share_interest(member_id: int, rate: Decimal = Query(default=SHARE_INTEREST_RATE),
+                   as_of: str = Query(default=None),
+                   db: Session = Depends(get_db),
+                   current: CurrentUser = Depends(get_current_account)):
+    """RD-style interest on share money: each deposit earns simple interest for the
+    number of completed months it has been held, at `rate`% per annum."""
+    if current.role == "member" and current.member_id != member_id:
+        raise HTTPException(403, "You can only view your own interest")
+
+    asof = date.today()
+    if as_of:
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                asof = datetime.strptime(as_of, fmt).date()
+                break
+            except ValueError:
+                continue
+
+    monthly_rate = Decimal(str(rate)) / Decimal("12") / Decimal("100")
+    txns = (db.query(ShareTransaction)
+            .filter(ShareTransaction.member_id == member_id)
+            .order_by(ShareTransaction.txn_date).all())
+
+    principal = Decimal("0")
+    total_interest = Decimal("0")
+    breakdown = []
+    for t in txns:
+        d = t.txn_date or t.reference_month
+        signed = -Decimal(t.amount) if str(t.txn_type).lower() == "withdrawal" else Decimal(t.amount)
+        months_active = (asof.year - d.year) * 12 + (asof.month - d.month)
+        # Deposits made after the 15th earn no interest for that month.
+        if d.day > 15:
+            months_active -= 1
+        if months_active < 0:
+            months_active = 0
+        interest = (signed * monthly_rate * months_active).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        principal += signed
+        total_interest += interest
+        breakdown.append({
+            "date": str(d), "amount": signed, "months_active": months_active,
+            "interest": interest,
+        })
+
+    return {
+        "member_id": member_id,
+        "rate": rate,
+        "as_of": str(asof),
+        "principal": principal,
+        "total_interest": total_interest,
+        "balance_with_interest": principal + total_interest,
+        "breakdown": breakdown,
     }
 
 
@@ -144,9 +230,7 @@ def list_all_shares(db: Session = Depends(get_db),
                 .join(Member, Member.id == ShareHolding.member_id)
                 .order_by(ShareHolding.member_id).all())
     return [
-        {"member_id": h.member_id, "member_name": name,
-         "total_shares": h.total_shares, "total_value": h.total_value,
-         "face_value_per_share": h.face_value_per_share}
+        {"member_id": h.member_id, "member_name": name, "balance": h.balance}
         for h, name in holdings
     ]
 

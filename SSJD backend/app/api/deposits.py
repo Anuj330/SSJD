@@ -20,6 +20,10 @@ from app.models.ledger import (
 )
 from app.models.members import Member
 from app.schemas.deposit import DepositOpenRequest, DepositTransactionRequest
+from app.services.ledger_service import (
+    get_or_create_account as _get_or_create_system_account,
+    post_journal as _post_journal,
+)
 
 
 # ── Well-known ledger account codes (created on first use) ──
@@ -28,61 +32,9 @@ CASH_ACCOUNT_CODE = "CASH-001"
 INTEREST_EXPENSE_CODE = "INT-EXP-001"
 
 
-def _get_or_create_system_account(db: Session, code: str, name: str, acct_type: AccountTypeEnum) -> Account:
-    """Get or auto-create a system-level ledger account."""
-    acct = db.query(Account).filter(Account.code == code).first()
-    if not acct:
-        acct = Account(
-            code=code,
-            name=name,
-            type=acct_type,
-            owner_type=OwnerTypeEnum.society,
-            is_active=True,
-        )
-        db.add(acct)
-        db.flush()
-    return acct
-
-
 def _generate_account_number(scheme_type: str) -> str:
     prefix = {"fd": "FD", "rd": "RD", "mis": "MIS", "savings": "SAV"}.get(scheme_type, "DEP")
     return f"{prefix}-{uuid.uuid4().hex[:8].upper()}"
-
-
-def _post_journal(
-    db: Session,
-    txn_type: str,
-    description: str,
-    dr_account_id: int,
-    cr_account_id: int,
-    amount: Decimal,
-    created_by: int | None,
-) -> JournalEntry:
-    """Post a balanced two-line journal entry."""
-    txn_ref = f"TXN-{uuid.uuid4().hex[:12].upper()}"
-    entry = JournalEntry(
-        txn_ref=txn_ref,
-        txn_type=txn_type,
-        description=description,
-        created_by=created_by,
-        status=EntryStatusEnum.posted,
-    )
-    db.add(entry)
-    db.flush()
-
-    db.add(JournalLine(
-        journal_entry_id=entry.id,
-        account_id=dr_account_id,
-        dr_amount=amount,
-        cr_amount=Decimal("0"),
-    ))
-    db.add(JournalLine(
-        journal_entry_id=entry.id,
-        account_id=cr_account_id,
-        dr_amount=Decimal("0"),
-        cr_amount=amount,
-    ))
-    return entry
 
 
 # ─────────────────────────────────────────────

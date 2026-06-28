@@ -21,7 +21,25 @@ export default function MyLoans() {
   const [scheduleModal, setScheduleModal] = useState(null);
   const [payModal, setPayModal] = useState(null);
   const [payAmount, setPayAmount] = useState('');
+  const [nextEmi, setNextEmi] = useState(null);
   const { pay, loading: paying } = useRazorpay();
+
+  // Open the Pay modal and auto-fill with the next unpaid EMI (still editable).
+  const openPay = async (row) => {
+    setPayModal(row);
+    setPayAmount('');
+    setNextEmi(null);
+    try {
+      const sch = await loansService.getSchedule(row.id);
+      const next = (sch?.schedule || []).find(r => !r.is_paid);
+      if (next) {
+        // amount_due already includes the accrued ₹10/month late fee
+        const remaining = Number(next.amount_due ?? (Number(next.total_due) - Number(next.total_paid || 0)));
+        setPayAmount(String(Math.round(remaining * 100) / 100));
+        setNextEmi({ ...next, remaining, penalty: Number(next.penalty || 0) });
+      }
+    } catch { /* leave blank on error */ }
+  };
 
   const list = loans ?? [];
   const fmt = n => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n);
@@ -50,7 +68,7 @@ export default function MyLoans() {
     { key: 'id', label: '', sortable: false, render: (_, row) => (
       <div className="flex gap-1">
         {row.status === 'active' && (
-          <Button variant="outline" size="sm" title="Pay EMI Online" onClick={e => { e.stopPropagation(); setPayModal(row); setPayAmount(''); }}>
+          <Button variant="outline" size="sm" title="Pay EMI Online" onClick={e => { e.stopPropagation(); openPay(row); }}>
             <CreditCard className="h-3.5 w-3.5" /> Pay
           </Button>
         )}
@@ -103,7 +121,21 @@ export default function MyLoans() {
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Outstanding: <strong className="text-amber-600">{fmt(payModal.outstanding_principal)}</strong>
             </p>
+            {nextEmi && (
+              <div className="rounded-lg bg-primary-50 px-3 py-2 text-sm dark:bg-primary-900/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600 dark:text-gray-300">Next EMI #{nextEmi.installment_no} · due {nextEmi.due_date}</span>
+                  <span className="font-bold text-primary-700 dark:text-primary-300">{fmt(nextEmi.remaining)}</span>
+                </div>
+                {nextEmi.penalty > 0 && (
+                  <div className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                    Includes late fee of {fmt(nextEmi.penalty)} (₹10/month overdue)
+                  </div>
+                )}
+              </div>
+            )}
             <Input label="Payment Amount (INR)" type="number" min="1" placeholder="Enter EMI amount" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
+            <p className="text-xs text-gray-400">Auto-filled with your next EMI — edit if you want to pay a different amount.</p>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setPayModal(null)}>Cancel</Button>
               <Button loading={paying} disabled={!payAmount || Number(payAmount) <= 0} onClick={handlePayEmi}>
