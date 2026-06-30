@@ -1,0 +1,60 @@
+name: Build Android APK
+
+# Build the SSJD portal mobile app (Capacitor) into an installable APK.
+# Run it from the Actions tab → "Build Android APK" → Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "Backend API base URL the app should call (e.g. https://api.example.com)"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "SSJD frontend/ssjd-app"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web (with API URL)
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: ${{ github.event.inputs.api_base_url }}
+
+      - name: Add & sync Android platform
+        run: |
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ssjd-portal-debug-apk
+          path: "SSJD frontend/ssjd-app/android/app/build/outputs/apk/debug/app-debug.apk"
+          if-no-files-found: error

@@ -7,8 +7,18 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import toast from 'react-hot-toast';
 
+// Deep-link support: /login?as=member or ?as=admin (from the public website).
+const initialLoginType = () => {
+  try {
+    const as = new URLSearchParams(window.location.search).get('as');
+    return as === 'member' ? 'member' : 'admin';
+  } catch {
+    return 'admin';
+  }
+};
+
 export default function Login() {
-  const [loginType, setLoginType] = useState('admin');
+  const [loginType, setLoginType] = useState(initialLoginType);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');

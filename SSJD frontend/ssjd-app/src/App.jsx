@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -62,6 +62,9 @@ export default function App() {
         <Route path="ledger/trial-balance" element={<TrialBalance />} />
         <Route path="ledger/statements" element={<Statements />} />
       </Route>
+      {/* Unknown paths → root, which redirects to /login when unauthenticated.
+          Keeps the app (incl. mobile webview) from ever landing on a blank route. */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </ErrorBoundary>
   );
