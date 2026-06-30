@@ -3,6 +3,13 @@ name: Build Android APK
 # Build the SSJD portal mobile app (Capacitor) into an installable APK.
 # Run it from the Actions tab → "Build Android APK" → Run workflow.
 on:
+  # Auto-build on push to the feature branch when the app changes.
+  push:
+    branches: ["feat/leadger_money_lead"]
+    paths:
+      - "SSJD frontend/ssjd-app/**"
+      - ".github/workflows/android-apk.yml"
+  # Also runnable manually once this workflow reaches the default branch.
   workflow_dispatch:
     inputs:
       api_base_url:
@@ -39,7 +46,8 @@ jobs:
       - name: Build web (with API URL)
         run: npm run build
         env:
-          VITE_API_BASE_URL: ${{ github.event.inputs.api_base_url }}
+          # dispatch input wins; otherwise a repo Variable (Settings → Variables); else empty.
+          VITE_API_BASE_URL: ${{ github.event.inputs.api_base_url || vars.VITE_API_BASE_URL }}
 
       - name: Add & sync Android platform
         run: |
