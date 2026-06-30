@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Capacitor } from '@capacitor/core';
 import { authService } from '../services/auth';
 
 function parseJwt(token) {
@@ -12,6 +13,12 @@ function parseJwt(token) {
 
 function getInitialState() {
   const token = localStorage.getItem('access_token');
+  // Native mobile app: always start at the login screen on every launch —
+  // never restore a saved session. The web build keeps remembering the session.
+  if (Capacitor.isNativePlatform()) {
+    if (token) localStorage.removeItem('access_token');
+    return { token: null, role: null, memberId: null, sub: null, isAuthenticated: false };
+  }
   if (!token) return { token: null, role: null, memberId: null, sub: null, isAuthenticated: false };
   const payload = parseJwt(token);
   if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
