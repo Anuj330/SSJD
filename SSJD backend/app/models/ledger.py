@@ -43,6 +43,7 @@ class Account(Base):
     code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(120), nullable=False)
     type = Column(Enum(AccountTypeEnum, name="account_type_enum"), nullable=False)
+    category = Column(String(80), nullable=True)  # P&L / grouping head, e.g. "Interest Income"
 
     owner_type = Column(Enum(OwnerTypeEnum, name="owner_type_enum"), nullable=False)
     owner_id = Column(Integer, nullable=True, index=True)

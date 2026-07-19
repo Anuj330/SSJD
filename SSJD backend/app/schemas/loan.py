@@ -70,6 +70,7 @@ class LoanApproveRequest(BaseModel):
 class LoanRepaymentRequest(BaseModel):
     amount: Decimal = Field(gt=0)
     description: Optional[str] = None
+    payment_date: Optional[str] = None  # YYYY-MM-DD (default: today)
 
 
 # ─── Response Models ───

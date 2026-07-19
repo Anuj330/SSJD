@@ -30,13 +30,16 @@ export default function SharesPage() {
   const [shareData, setShareData] = useState(null);
   const [loadingShares, setLoadingShares] = useState(false);
 
-  const [amount, setAmount] = useState('');
+  const [cd, setCd] = useState('');
+  const [od, setOd] = useState('');
   const [remarks, setRemarks] = useState('');
   const [txnDate, setTxnDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [submitting, setSubmitting] = useState(false);
 
   const selectedMember = memberList.find((m) => String(m.id) === String(memberId));
-  const amt = Number(amount) || 0;
+  const cdAmt = Number(cd) || 0;
+  const odAmt = Number(od) || 0;
+  const amt = cdAmt + odAmt;   // Share money (SM) = CD + OD
   const afterCutoff = txnDate && Number(txnDate.slice(8, 10)) > 15;
 
   async function loadShares(id) {
@@ -57,12 +60,15 @@ export default function SharesPage() {
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!memberId) { toast.error('Select a member first'); return; }
-    if (amt <= 0) { toast.error('Enter an amount greater than ₹0'); return; }
+    if (amt <= 0) { toast.error('Enter a CD and/or OD amount greater than ₹0'); return; }
     setSubmitting(true);
     try {
-      await sharesService.addShareMoney(Number(memberId), amt, remarks.trim(), txnDate);
-      toast.success(`Deposited ${fmtINR(amt)} to ${selectedMember?.name}'s account`);
-      setAmount('');
+      await sharesService.addShareMoney(Number(memberId), {
+        amount: amt, cd_amount: cdAmt, od_amount: odAmt, remarks: remarks.trim(), txnDate,
+      });
+      toast.success(`Deposited ${fmtINR(amt)} (CD ${fmtINR(cdAmt)} · OD ${fmtINR(odAmt)}) to ${selectedMember?.name}'s account`);
+      setCd('');
+      setOd('');
       setRemarks('');
       await loadShares(memberId);
     } catch (err) {
@@ -74,15 +80,17 @@ export default function SharesPage() {
 
   const txns = shareData?.transactions ?? [];
   const balance = Number(shareData?.balance ?? 0);
+  const cdBalance = Number(shareData?.cd_balance ?? 0);
+  const odBalance = Number(shareData?.od_balance ?? 0);
   const deposits = txns.filter((t) => !isDebit(t.txn_type)).length;
   const lastDate = txns[0]?.txn_date;
 
   const handleExport = () => {
     if (!shareData || txns.length === 0) { toast.error('Nothing to export'); return; }
-    const headers = ['Transaction ID', 'Date', 'Type', 'Amount (INR)', 'Remarks'];
-    const rows = txns.map((t) => [t.transaction_id, fmtDate(t.txn_date), labelFor(t.txn_type), Number(t.amount).toFixed(2), t.remarks || '']);
+    const headers = ['Transaction ID', 'Date', 'Type', 'CD (INR)', 'OD (INR)', 'Amount (INR)', 'Remarks'];
+    const rows = txns.map((t) => [t.transaction_id, fmtDate(t.txn_date), labelFor(t.txn_type), Number(t.cd_amount || 0).toFixed(2), Number(t.od_amount || 0).toFixed(2), Number(t.amount).toFixed(2), t.remarks || '']);
     rows.push([]);
-    rows.push(['Account balance', '', balance.toFixed(2), '']);
+    rows.push(['Balances', '', '', cdBalance.toFixed(2), odBalance.toFixed(2), balance.toFixed(2), '']);
     const safeName = (selectedMember?.name || `member-${memberId}`).replace(/\s+/g, '-').toLowerCase();
     exportToCsv(`share-money-statement-${safeName}.csv`, headers, rows);
     toast.success('Statement exported');
@@ -118,15 +126,24 @@ export default function SharesPage() {
           </div>
 
           <form onSubmit={handleAdd} className="space-y-3">
-            <Input
-              label="Monthly share money (₹)"
-              type="number"
-              min="1"
-              step="1"
-              placeholder="500"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Compulsory Deposit (CD ₹)"
+                type="number" min="0" step="1" placeholder="300"
+                value={cd}
+                onChange={(e) => setCd(e.target.value)}
+              />
+              <Input
+                label="Optional Deposit (OD ₹)"
+                type="number" min="0" step="1" placeholder="200"
+                value={od}
+                onChange={(e) => setOd(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm dark:border-gray-800 dark:bg-gray-800/50">
+              <span className="text-gray-500 dark:text-gray-400">Share money (SM = CD + OD)</span>
+              <span className="num font-bold text-gray-900 dark:text-gray-100">{fmtINR(amt)}</span>
+            </div>
             <Input
               label="Deposit date"
               type="date"
@@ -161,7 +178,11 @@ export default function SharesPage() {
         <>
           {/* Summary */}
           <div className="grid gap-4 sm:grid-cols-3">
-            <SummaryTile icon={Wallet} tone="emerald" label="Account Balance" value={fmtINR(balance)} />
+            <SummaryTile icon={Wallet} tone="emerald" label="Share Money (SM)" value={fmtINR(balance)} />
+            <SummaryTile icon={Coins} tone="blue" label="Compulsory (CD)" value={fmtINR(cdBalance)} />
+            <SummaryTile icon={Coins} tone="violet" label="Optional (OD)" value={fmtINR(odBalance)} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <SummaryTile icon={Hash} tone="blue" label="Deposits Made" value={fmtNum(deposits)} />
             <SummaryTile icon={CalendarClock} tone="violet" label="Last Deposit" value={lastDate ? fmtDate(lastDate) : '—'} />
           </div>
@@ -189,7 +210,8 @@ export default function SharesPage() {
                       <th className="px-4 py-3 font-bold">Txn ID</th>
                       <th className="px-4 py-3 font-bold">Date</th>
                       <th className="px-4 py-3 font-bold">Type</th>
-                      <th className="px-4 py-3 font-bold">Remarks</th>
+                      <th className="px-4 py-3 text-right font-bold">CD</th>
+                      <th className="px-4 py-3 text-right font-bold">OD</th>
                       <th className="px-4 py-3 text-right font-bold">Amount</th>
                     </tr>
                   </thead>
@@ -203,7 +225,8 @@ export default function SharesPage() {
                           <td className="px-4 py-3">
                             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${debit ? 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300' : 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'}`}>{labelFor(t.txn_type)}</span>
                           </td>
-                          <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{t.remarks || <span className="text-gray-300 dark:text-gray-600">—</span>}</td>
+                          <td className="num px-4 py-3 text-right text-gray-600 dark:text-gray-300">{fmtINR(t.cd_amount || 0)}</td>
+                          <td className="num px-4 py-3 text-right text-gray-600 dark:text-gray-300">{fmtINR(t.od_amount || 0)}</td>
                           <td className={`num px-4 py-3 text-right font-bold ${debit ? 'text-red-500 dark:text-red-400' : 'text-primary-600 dark:text-primary-400'}`}>
                             {debit ? '−' : '+'}{fmtINR(t.amount)}
                           </td>

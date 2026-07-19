@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 import uuid
 import math
@@ -290,16 +290,32 @@ def make_repayment(loan_id: int, payload: LoanRepaymentRequest,
     if loan.status != LoanStatusEnum.active:
         raise HTTPException(400, "Loan is not active")
 
-    product = db.query(LoanProduct).filter(LoanProduct.id == loan.product_id).first()
-    member = db.query(Member).filter(Member.id == loan.member_id).first()
+    # Payment date (admin may back/forward-date a manual entry; default today).
+    pay_date = date.today()
+    if payload.payment_date:
+        for _fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                pay_date = datetime.strptime(payload.payment_date.strip(), _fmt).date()
+                break
+            except ValueError:
+                continue
 
-    # Find next unpaid installment
+    result = apply_repayment(db, loan, payload.amount, pay_date,
+                             payload.description, current.user_id)
+    db.commit()
+    return result
+
+
+def apply_repayment(db, loan, amount, pay_date, description, created_by):
+    """Allocate `amount` across a loan's unpaid installments (penalty→interest→
+    principal) and post the ledger entry. No commit — reused by make_repayment
+    and the combined collection endpoint. Returns the result dict."""
     next_inst = (db.query(LoanRepayment)
-                 .filter(LoanRepayment.loan_id == loan_id, LoanRepayment.is_paid == False)
+                 .filter(LoanRepayment.loan_id == loan.id, LoanRepayment.is_paid == False)
                  .order_by(LoanRepayment.installment_no)
                  .first())
 
-    remaining = payload.amount
+    remaining = amount
     paid_installments = []
 
     while remaining > 0 and next_inst:
@@ -318,13 +334,12 @@ def make_repayment(loan_id: int, payload: LoanRepaymentRequest,
         int_pay = min(pay_now, next_inst.interest_due - next_inst.interest_paid)
         pay_now -= int_pay
         prin_pay = min(pay_now, next_inst.principal_due - next_inst.principal_paid)
-        pay_now_leftover = pay_now - prin_pay
 
         next_inst.penalty_paid += pen_pay
         next_inst.interest_paid += int_pay
         next_inst.principal_paid += prin_pay
         next_inst.total_paid = next_inst.principal_paid + next_inst.interest_paid + next_inst.penalty_paid
-        next_inst.paid_date = date.today()
+        next_inst.paid_date = pay_date
 
         if (next_inst.principal_paid >= next_inst.principal_due
                 and next_inst.interest_paid >= next_inst.interest_due
@@ -341,37 +356,21 @@ def make_repayment(loan_id: int, payload: LoanRepaymentRequest,
 
         # Move to next installment
         next_inst = (db.query(LoanRepayment)
-                     .filter(LoanRepayment.loan_id == loan_id,
+                     .filter(LoanRepayment.loan_id == loan.id,
                              LoanRepayment.is_paid == False,
                              LoanRepayment.installment_no > next_inst.installment_no)
                      .order_by(LoanRepayment.installment_no)
                      .first()) if next_inst.is_paid else None
 
-    total_repaid = payload.amount - remaining
-
+    total_repaid = amount - remaining
     if total_repaid <= 0:
-        raise HTTPException(400, "No installments to pay")
+        raise HTTPException(400, "No unpaid installments to apply the loan payment to")
 
     # Journal: Dr Cash (asset ↑), Cr Loan Receivable (asset ↓)
     cash = _get_or_create_account(db, CASH_CODE, "Cash / Bank", AccountTypeEnum.asset)
-
-    # Principal portion: Dr Cash, Cr Loan Receivable
-    principal_total = sum(
-        (db.query(LoanRepayment).filter(
-            LoanRepayment.loan_id == loan_id,
-            LoanRepayment.installment_no == inst_no
-        ).first().principal_paid if True else Decimal("0"))
-        for inst_no in paid_installments
-    ) if False else Decimal("0")
-
-    # Simpler approach: post entire repayment
     _post_journal(db, "loan_repayment",
-                  payload.description or f"Repayment for {loan.loan_number}",
-                  cash.id, loan.ledger_account_id, total_repaid, current.user_id)
-
-    # Interest income journal
-    int_portion = payload.amount - remaining - (loan.outstanding_principal + total_repaid - loan.outstanding_principal)
-    # Actually just use the total for now — the main ledger entry covers it
+                  description or f"Repayment for {loan.loan_number}",
+                  cash.id, loan.ledger_account_id, total_repaid, created_by)
 
     # Check if loan fully repaid
     if loan.outstanding_principal <= 0:
@@ -379,7 +378,6 @@ def make_repayment(loan_id: int, payload: LoanRepaymentRequest,
         loan.status = LoanStatusEnum.closed
         loan.closed_date = date.today()
 
-    db.commit()
     return {
         "message": "Repayment recorded",
         "amount_applied": total_repaid,

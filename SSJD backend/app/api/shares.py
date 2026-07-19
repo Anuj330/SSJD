@@ -52,12 +52,14 @@ def _post_journal(db, txn_type, description, dr_id, cr_id, amount, created_by):
 #  Share Capital
 # ───────────────────────────────────
 
-def purchase_shares(member_id: int, amount: Decimal = Query(gt=0),
+def purchase_shares(member_id: int, amount: Decimal | None = Query(default=None, gt=0),
+                    cd_amount: Decimal | None = Query(default=None, ge=0, description="Compulsory Deposit portion"),
+                    od_amount: Decimal | None = Query(default=None, ge=0, description="Optional Deposit portion"),
                     remarks: str | None = Query(default=None),
                     txn_date: str | None = Query(default=None, description="Deposit date YYYY-MM-DD (default today)"),
                     db: Session = Depends(get_db),
                     current: CurrentUser = Depends(require_admin)):
-    """Record a member's monthly share-money deposit."""
+    """Record a member's share-money deposit. Share money (SM) = CD + OD."""
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
         raise HTTPException(404, "Member not found")
@@ -72,9 +74,53 @@ def purchase_shares(member_id: int, amount: Decimal = Query(gt=0),
                 continue
     ref_month = date(d.year, d.month, 1)
 
-    holding = db.query(ShareHolding).filter(ShareHolding.member_id == member_id).first()
+    txn_id, holding, amt = deposit_share(db, member, amount, d, ref_month, remarks,
+                                         current.user_id, cd_amount=cd_amount, od_amount=od_amount)
+
+    db.commit()
+    _notify_share_deposit(db, member, amt)
+    return {"message": "Share money deposited", "transaction_id": txn_id,
+            "balance": holding.balance, "cd_balance": holding.cd_balance, "od_balance": holding.od_balance}
+
+
+def _resolve_cd_od(amount, cd_amount, od_amount):
+    """Reconcile the CD/OD split with the SM total. Rules:
+    - if only cd/od given → amount = cd + od
+    - if only amount given → default the whole amount to CD (compulsory)
+    - if all given → cd + od must equal amount
+    Returns (amount, cd, od) as Decimals.
+    """
+    cd = Decimal(str(cd_amount)) if cd_amount is not None else None
+    od = Decimal(str(od_amount)) if od_amount is not None else None
+    amt = Decimal(str(amount)) if amount is not None else None
+
+    if cd is None and od is None:
+        if amt is None or amt <= 0:
+            raise HTTPException(400, "Provide an amount, or a CD/OD split")
+        return amt, amt, Decimal("0")
+
+    cd = cd or Decimal("0")
+    od = od or Decimal("0")
+    split_total = cd + od
+    if amt is None:
+        amt = split_total
+    if amt <= 0:
+        raise HTTPException(400, "Amount must be greater than 0")
+    if split_total != amt:
+        raise HTTPException(400, f"CD ({cd}) + OD ({od}) must equal the share amount ({amt})")
+    return amt, cd, od
+
+
+def deposit_share(db, member, amount, d, ref_month, remarks, created_by,
+                  cd_amount=None, od_amount=None):
+    """Post a share-money deposit (no commit). SM = CD + OD; both accumulate in
+    their own running balances. Returns (transaction_id, holding)."""
+    amount, cd, od = _resolve_cd_od(amount, cd_amount, od_amount)
+
+    holding = db.query(ShareHolding).filter(ShareHolding.member_id == member.id).first()
     if not holding:
-        holding = ShareHolding(member_id=member_id, balance=Decimal("0"))
+        holding = ShareHolding(member_id=member.id, balance=Decimal("0"),
+                               cd_balance=Decimal("0"), od_balance=Decimal("0"))
         db.add(holding)
         db.flush()
 
@@ -82,21 +128,20 @@ def purchase_shares(member_id: int, amount: Decimal = Query(gt=0),
     cash = _get_or_create_account(db, CASH_CODE, "Cash / Bank", AccountTypeEnum.asset)
     share_cap = _get_or_create_account(db, SHARE_CAPITAL_CODE, "Share Capital", AccountTypeEnum.equity)
     entry = _post_journal(db, SHARE_DEPOSIT,
-                          f"Share money deposit by {member.name}",
-                          cash.id, share_cap.id, amount, current.user_id)
+                          f"Share money deposit by {member.name} (CD {cd} / OD {od})",
+                          cash.id, share_cap.id, amount, created_by)
 
     holding.balance += amount
+    holding.cd_balance = (holding.cd_balance or Decimal("0")) + cd
+    holding.od_balance = (holding.od_balance or Decimal("0")) + od
 
     txn_id = gen_share_txn_id()
     db.add(ShareTransaction(
-        transaction_id=txn_id, member_id=member_id, txn_type=SHARE_DEPOSIT,
-        amount=amount, txn_date=d, reference_month=ref_month,
+        transaction_id=txn_id, member_id=member.id, txn_type=SHARE_DEPOSIT,
+        amount=amount, cd_amount=cd, od_amount=od, txn_date=d, reference_month=ref_month,
         journal_entry_id=entry.id, remarks=(remarks or None),
     ))
-
-    db.commit()
-    _notify_share_deposit(db, member, amount)
-    return {"message": "Share money deposited", "transaction_id": txn_id, "balance": holding.balance}
+    return txn_id, holding, amount
 
 
 def _notify_share_deposit(db, member, amount):
@@ -158,10 +203,12 @@ def get_member_shares(member_id: int, db: Session = Depends(get_db),
     return {
         "member_id": member_id,
         "balance": holding.balance if holding else 0,
+        "cd_balance": holding.cd_balance if holding else 0,
+        "od_balance": holding.od_balance if holding else 0,
         "transactions": [
             {"id": t.id, "transaction_id": t.transaction_id, "txn_type": t.txn_type,
-             "amount": t.amount, "txn_date": t.txn_date, "created_at": t.created_at,
-             "remarks": t.remarks}
+             "amount": t.amount, "cd_amount": t.cd_amount, "od_amount": t.od_amount,
+             "txn_date": t.txn_date, "created_at": t.created_at, "remarks": t.remarks}
             for t in txns
         ],
     }

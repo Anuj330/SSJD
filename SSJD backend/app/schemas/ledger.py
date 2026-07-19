@@ -6,11 +6,19 @@ from pydantic import BaseModel
 
 
 class AccountCreate(BaseModel):
-    code: str
     name: str
     type: str
-    owner_type: str
+    category: Optional[str] = None      # P&L / grouping head, e.g. "Interest Income"
+    code: Optional[str] = None          # auto-generated from type if omitted
+    owner_type: Optional[str] = "society"
     owner_id: Optional[int] = None
+
+
+class AccountUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    category: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 class AccountResponse(BaseModel):

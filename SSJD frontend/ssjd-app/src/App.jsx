@@ -12,6 +12,8 @@ import MessagingPage from './pages/messaging/MessagingPage';
 import Accounts from './pages/ledger/Accounts';
 import JournalEntry from './pages/ledger/JournalEntry';
 import TrialBalance from './pages/ledger/TrialBalance';
+import ProfitLoss from './pages/ledger/ProfitLoss';
+import BalanceSheet from './pages/ledger/BalanceSheet';
 import Statements from './pages/ledger/Statements';
 import SchemesList from './pages/deposits/SchemesList';
 import DepositsList from './pages/deposits/DepositsList';
@@ -19,6 +21,7 @@ import MemberPassbook from './pages/members/MemberPassbook';
 import LoanProducts from './pages/loans/LoanProducts';
 import LoansList from './pages/loans/LoansList';
 import SharesPage from './pages/shares/SharesPage';
+import CollectPayment from './pages/collections/CollectPayment';
 import ReportsPage from './pages/reports/ReportsPage';
 import AnalyticsPage from './pages/reports/AnalyticsPage';
 import PaymentsPage from './pages/payments/PaymentsPage';
@@ -54,12 +57,15 @@ export default function App() {
         <Route path="loan-products" element={<LoanProducts />} />
         <Route path="loans" element={<LoansList />} />
         <Route path="shares" element={<SharesPage />} />
+        <Route path="collect" element={<CollectPayment />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="payments" element={<PaymentsPage />} />
         <Route path="ledger/accounts" element={<Accounts />} />
         <Route path="ledger/journal" element={<JournalEntry />} />
         <Route path="ledger/trial-balance" element={<TrialBalance />} />
+        <Route path="ledger/profit-loss" element={<ProfitLoss />} />
+        <Route path="ledger/balance-sheet" element={<BalanceSheet />} />
         <Route path="ledger/statements" element={<Statements />} />
       </Route>
       {/* Unknown paths → root, which redirects to /login when unauthenticated.

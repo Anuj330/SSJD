@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, BookOpen } from 'lucide-react';
+import { Plus, BookOpen, Pencil } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -36,12 +36,13 @@ const ownerTypeOptions = [
 ];
 
 export default function Accounts() {
-  const { data: trialBalance, loading, execute: refresh } = useApi(() => ledgerService.getTrialBalance());
+  const { data: accountsData, loading, execute: refresh } = useApi(() => ledgerService.listAccounts());
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
   const debouncedSearch = useDebounce(search);
 
-  const accounts = trialBalance?.rows ?? [];
+  const accounts = Array.isArray(accountsData) ? accountsData : [];
 
   const filtered = useMemo(() => {
     if (!debouncedSearch) return accounts;
@@ -62,6 +63,7 @@ export default function Accounts() {
       label: 'Type',
       render: (v) => <Badge color={typeColors[v] || 'gray'}>{v}</Badge>,
     },
+    { key: 'category', label: 'Category', render: (v) => v || <span className="text-gray-300 dark:text-gray-600">—</span> },
     {
       key: 'total_debit',
       label: 'Total Debit',
@@ -71,6 +73,15 @@ export default function Accounts() {
       key: 'total_credit',
       label: 'Total Credit',
       render: (v) => <span className="text-emerald-600 dark:text-emerald-400">{fmt(v)}</span>,
+    },
+    { key: 'is_active', label: 'Status', render: (v) => <Badge color={v ? 'green' : 'gray'}>{v ? 'active' : 'inactive'}</Badge> },
+    {
+      key: 'account_id', label: '', sortable: false,
+      render: (_, row) => (
+        <Button variant="ghost" size="sm" title="Edit" onClick={(e) => { e.stopPropagation(); setEditing(row); }}>
+          <Pencil className="h-3.5 w-3.5 text-gray-500" />
+        </Button>
+      ),
     },
   ];
 
@@ -115,23 +126,37 @@ export default function Accounts() {
       <Modal isOpen={showForm} onClose={() => setShowForm(false)} title="Create Account">
         <AccountForm onSuccess={() => { setShowForm(false); refresh(); }} onCancel={() => setShowForm(false)} />
       </Modal>
+
+      {editing && (
+        <Modal isOpen onClose={() => setEditing(null)} title={`Edit — ${editing.account_name}`}>
+          <AccountForm account={editing} onSuccess={() => { setEditing(null); refresh(); }} onCancel={() => setEditing(null)} />
+        </Modal>
+      )}
     </div>
   );
 }
 
-function AccountForm({ onSuccess, onCancel }) {
-  const [form, setForm] = useState({ code: '', name: '', type: '', owner_type: '', owner_id: '' });
+function AccountForm({ account, onSuccess, onCancel }) {
+  const isEdit = !!account;
+  const [form, setForm] = useState({
+    name: account?.account_name || '',
+    type: account?.account_type || '',
+    category: account?.category || '',
+    code: '',
+    owner_type: account?.owner_type || 'society',
+    owner_id: '',
+    is_active: account ? account.is_active : true,
+  });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const validate = () => {
     const errs = {};
-    if (!form.code.trim()) errs.code = 'Code is required';
     if (!form.name.trim()) errs.name = 'Name is required';
     if (!form.type) errs.type = 'Type is required';
-    if (!form.owner_type) errs.owner_type = 'Owner type is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -141,13 +166,23 @@ function AccountForm({ onSuccess, onCancel }) {
     if (!validate()) return;
     setLoading(true);
     try {
-      const payload = { code: form.code, name: form.name, type: form.type, owner_type: form.owner_type };
-      if (form.owner_id) payload.owner_id = Number(form.owner_id);
-      await ledgerService.createAccount(payload);
-      toast.success('Account created');
+      if (isEdit) {
+        await ledgerService.updateAccount(account.account_id, {
+          name: form.name.trim(), type: form.type,
+          category: form.category.trim(), is_active: !!form.is_active,
+        });
+        toast.success('Account updated');
+      } else {
+        const payload = { name: form.name.trim(), type: form.type, owner_type: form.owner_type || 'society' };
+        if (form.category.trim()) payload.category = form.category.trim();
+        if (form.code.trim()) payload.code = form.code.trim();
+        if (form.owner_id) payload.owner_id = Number(form.owner_id);
+        await ledgerService.createAccount(payload);
+        toast.success('Account created');
+      }
       onSuccess?.();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to create account');
+      toast.error(err.response?.data?.detail || 'Failed to save account');
     } finally {
       setLoading(false);
     }
@@ -155,14 +190,36 @@ function AccountForm({ onSuccess, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input label="Account Code" placeholder="e.g. CASH-001" value={form.code} onChange={set('code')} error={errors.code} />
-      <Input label="Account Name" placeholder="e.g. Cash in Hand" value={form.name} onChange={set('name')} error={errors.name} />
+      <Input label="Account Name" placeholder="e.g. Rent Expense, Grant Income, Petty Cash" value={form.name} onChange={set('name')} error={errors.name} />
       <Select label="Account Type" value={form.type} onChange={set('type')} options={typeOptions} placeholder="Select type" error={errors.type} />
-      <Select label="Owner Type" value={form.owner_type} onChange={set('owner_type')} options={ownerTypeOptions} placeholder="Select owner type" error={errors.owner_type} />
-      <Input label="Owner ID (optional)" type="number" placeholder="Member or Society ID" value={form.owner_id} onChange={set('owner_id')} />
+      <Input label="Category / P&L head (optional)" placeholder="e.g. Interest Income, Admin Expenses" value={form.category} onChange={set('category')} />
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Type controls how the account appears in the Trial Balance, P&amp;L and Balance Sheet
+        (Income &amp; Expense feed the P&amp;L; Asset/Liability/Equity feed the Balance Sheet).
+        {!isEdit && <> A code is generated automatically (e.g. <span className="font-mono">EXPENS-004</span>).</>}
+      </p>
+
+      {isEdit ? (
+        <Select label="Status" value={form.is_active ? 'true' : 'false'} onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.value === 'true' }))}
+          options={[{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }]} />
+      ) : (
+        <>
+          <button type="button" onClick={() => setAdvanced((a) => !a)} className="text-sm font-medium text-primary-600 dark:text-primary-400">
+            {advanced ? 'Hide' : 'Advanced options'}
+          </button>
+          {advanced && (
+            <div className="space-y-4 rounded-lg border border-gray-200 p-3 dark:border-gray-800">
+              <Input label="Custom code (optional)" placeholder="auto-generated if blank" value={form.code} onChange={set('code')} />
+              <Select label="Owner Type" value={form.owner_type} onChange={set('owner_type')} options={ownerTypeOptions} placeholder="Society" />
+              <Input label="Owner ID (optional)" type="number" placeholder="Member / Society ID" value={form.owner_id} onChange={set('owner_id')} />
+            </div>
+          )}
+        </>
+      )}
+
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
-        <Button type="submit" loading={loading}>Create Account</Button>
+        <Button type="submit" loading={loading}>{isEdit ? 'Save Changes' : 'Create Account'}</Button>
       </div>
     </form>
   );

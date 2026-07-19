@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api import users, auth, members, member_profile, member_auth, ledger, schemes, deposits, loans, shares, reports, activity, analytics, payments, pdf_exports, email, aadhaar, messaging
+from app.api import users, auth, members, member_profile, member_auth, ledger, schemes, deposits, loans, shares, reports, activity, analytics, payments, pdf_exports, email, aadhaar, messaging, collections
 
 
 router = APIRouter(prefix="/api/v1")
@@ -109,6 +109,20 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/ledger/accounts/",
+    ledger.list_accounts,
+    methods=["GET"],
+    tags=["Ledger"],
+)
+
+router.add_api_route(
+    "/ledger/accounts/{account_id}",
+    ledger.update_account,
+    methods=["PATCH"],
+    tags=["Ledger"],
+)
+
+router.add_api_route(
     "/ledger/journal/post",
     ledger.post_journal,
     methods=["POST"],
@@ -132,6 +146,20 @@ router.add_api_route(
 router.add_api_route(
     "/ledger/trial-balance",
     ledger.trial_balance,
+    methods=["GET"],
+    tags=["Ledger"],
+)
+
+router.add_api_route(
+    "/ledger/profit-loss",
+    ledger.profit_and_loss,
+    methods=["GET"],
+    tags=["Ledger"],
+)
+
+router.add_api_route(
+    "/ledger/balance-sheet",
+    ledger.balance_sheet,
     methods=["GET"],
     tags=["Ledger"],
 )
@@ -253,6 +281,8 @@ router.add_api_route("/loans/{loan_id}/repay", loans.make_repayment, methods=["P
 router.add_api_route("/loans/{loan_id}/schedule", loans.get_loan_schedule, methods=["GET"], tags=["Loans"])
 
 # Shares
+router.add_api_route("/members/{member_id}/collect", collections.collect_payment, methods=["POST"], tags=["Collections"])
+router.add_api_route("/members/{member_id}/advance", collections.get_member_advance, methods=["GET"], tags=["Collections"])
 router.add_api_route("/members/{member_id}/shares", shares.get_member_shares, methods=["GET"], tags=["Shares"])
 router.add_api_route("/members/{member_id}/shares/purchase", shares.purchase_shares, methods=["POST"], tags=["Shares"])
 router.add_api_route("/members/{member_id}/shares/refund", shares.refund_shares, methods=["POST"], tags=["Shares"])

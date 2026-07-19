@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Users, UserCircle, Coins, PiggyBank, Landmark, CreditCard,
   Banknote, Receipt, ClipboardList, TrendingUp, BookOpen, FileText, BarChart3,
-  Wallet, IdCard, MessageSquare, X,
+  Wallet, IdCard, MessageSquare, HandCoins, Scale, LineChart, X,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { initials } from '../../utils/format';
@@ -14,6 +14,7 @@ const ADMIN_NAV = {
     { to: '/profiles', icon: UserCircle, label: 'Profiles' },
     { to: '/aadhaar', icon: IdCard, label: 'Aadhaar KYC' },
     { to: '/shares', icon: Coins, label: 'Share Money' },
+    { to: '/collect', icon: HandCoins, label: 'Collect Payment' },
     { to: '/deposits', icon: PiggyBank, label: 'Deposits' },
     { to: '/schemes', icon: Landmark, label: 'Schemes' },
     { to: '/loans', icon: CreditCard, label: 'Loans' },
@@ -27,6 +28,8 @@ const ADMIN_NAV = {
     { to: '/ledger/accounts', icon: BookOpen, label: 'Ledger' },
     { to: '/ledger/journal', icon: FileText, label: 'Journal Entry' },
     { to: '/ledger/trial-balance', icon: BarChart3, label: 'Trial Balance' },
+    { to: '/ledger/profit-loss', icon: LineChart, label: 'Profit & Loss' },
+    { to: '/ledger/balance-sheet', icon: Scale, label: 'Balance Sheet' },
     { to: '/ledger/statements', icon: Wallet, label: 'Statements' },
   ],
 };

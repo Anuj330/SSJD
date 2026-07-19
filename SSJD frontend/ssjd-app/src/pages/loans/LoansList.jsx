@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, CheckCircle, XCircle, Banknote, CreditCard, Calendar, Calculator } from 'lucide-react';
 import { calcEmi } from '../../utils/emi';
 import Card from '../../components/ui/Card';
@@ -90,8 +90,10 @@ export default function LoansList() {
         <LoanApplyForm onSuccess={() => { setShowApply(false); refresh(); }} onCancel={() => setShowApply(false)} />
       </Modal>
 
-      {actionModal && <Modal isOpen onClose={() => setActionModal(null)} title={`${actionModal.type.charAt(0).toUpperCase() + actionModal.type.slice(1)} — ${actionModal.loan.loan_number}`}>
-        <LoanActionForm {...actionModal} onSuccess={() => { setActionModal(null); refresh(); }} onCancel={() => setActionModal(null)} />
+      {actionModal && <Modal isOpen onClose={() => setActionModal(null)} title={`${actionModal.type === 'repay' ? 'Record EMI Payment' : actionModal.type.charAt(0).toUpperCase() + actionModal.type.slice(1)} — ${actionModal.loan.loan_number}`}>
+        {actionModal.type === 'repay'
+          ? <LoanRepayForm loan={actionModal.loan} onSuccess={() => { setActionModal(null); refresh(); }} onCancel={() => setActionModal(null)} />
+          : <LoanActionForm {...actionModal} onSuccess={() => { setActionModal(null); refresh(); }} onCancel={() => setActionModal(null)} />}
       </Modal>}
 
       {scheduleModal && <Modal isOpen onClose={() => setScheduleModal(null)} title={`EMI Schedule — ${scheduleModal.loan_number}`} size="xl">
@@ -218,6 +220,73 @@ function LoanActionForm({ type, loan, onSuccess, onCancel }) {
       <Input label={type === 'approve' ? 'Sanctioned Amount' : 'Repayment Amount'} type="number" min="1" value={amount} onChange={e => setAmount(e.target.value)} />
       {type === 'approve' && <Input label="Remarks" value={remarks} onChange={e => setRemarks(e.target.value)} />}
       <div className="flex justify-end gap-3"><Button variant="secondary" onClick={onCancel}>Cancel</Button><Button loading={loading} onClick={handleSubmit}>{type === 'approve' ? 'Approve' : 'Record Payment'}</Button></div>
+    </div>
+  );
+}
+
+function LoanRepayForm({ loan, onSuccess, onCancel }) {
+  const { data: sched, loading: schedLoading } = useApi(() => loansService.getSchedule(loan.id));
+  const rows = sched?.schedule ?? [];
+  const nextInst = rows.find(r => !r.is_paid);
+  const [amount, setAmount] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [loading, setLoading] = useState(false);
+  const fmt = n => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n);
+  const fmtDate = d => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+
+  // Prefill with the next unpaid EMI (includes any accrued late fee).
+  useEffect(() => {
+    if (nextInst && amount === '') setAmount(Number(nextInst.amount_due).toFixed(2));
+  }, [nextInst]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const amt = Number(amount) || 0;
+  const lateFee = nextInst ? Number(nextInst.penalty) - Number(nextInst.penalty_paid) : 0;
+
+  const handleSubmit = async () => {
+    if (amt <= 0) { toast.error('Enter an amount greater than ₹0'); return; }
+    setLoading(true);
+    try {
+      const res = await loansService.repay(loan.id, {
+        amount: amt,
+        description: remarks.trim() || undefined,
+        payment_date: payDate,
+      });
+      toast.success(`Recorded ${fmt(res.amount_applied)} · installment(s) ${res.installments_paid?.join(', ') || '—'}`);
+      onSuccess?.();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to record payment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (schedLoading) return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />)}</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm dark:border-gray-800 dark:bg-gray-800/50">
+        <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Member</span><span className="font-medium">{loan.member_name}</span></div>
+        <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Outstanding</span><span className="font-semibold text-amber-600">{fmt(loan.outstanding_principal)}</span></div>
+        {nextInst ? (
+          <div className="mt-1 flex justify-between border-t border-gray-200 pt-1 dark:border-gray-700">
+            <span className="text-gray-500 dark:text-gray-400">Next EMI #{nextInst.installment_no} · due {fmtDate(nextInst.due_date)}</span>
+            <span className="font-medium">{fmt(nextInst.amount_due)}</span>
+          </div>
+        ) : <div className="mt-1 text-gray-500">No unpaid installments.</div>}
+        {lateFee > 0 && <div className="mt-0.5 text-xs font-medium text-red-500">Includes late fee {fmt(lateFee)}</div>}
+      </div>
+
+      <Input label="Payment amount (₹)" type="number" min="1" step="1" value={amount} onChange={e => setAmount(e.target.value)} placeholder="EMI amount" />
+      <Input label="Payment date" type="date" value={payDate} onChange={e => setPayDate(e.target.value)} />
+      <Input label="Remarks (optional)" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="e.g. cash at branch" />
+
+      <div className="flex justify-end gap-3 pt-1">
+        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+        <Button loading={loading} disabled={amt <= 0} onClick={handleSubmit}>
+          <CreditCard className="h-4 w-4" /> Record {amt > 0 ? fmt(amt) : 'Payment'}
+        </Button>
+      </div>
     </div>
   );
 }

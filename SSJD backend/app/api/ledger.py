@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_admin, get_current_account
-from app.models.ledger import Account, JournalEntry, JournalLine, EntryStatusEnum, OwnerTypeEnum
-from app.schemas.ledger import AccountCreate, JournalPostRequest
+from app.models.ledger import Account, JournalEntry, JournalLine, EntryStatusEnum, OwnerTypeEnum, AccountTypeEnum
+from app.schemas.ledger import AccountCreate, AccountUpdate, JournalPostRequest
 
 
 def create_account(
@@ -17,19 +17,85 @@ def create_account(
     db: Session = Depends(get_db),
     current: CurrentUser = Depends(require_admin),
 ):
-    existing = db.query(Account).filter(Account.code == payload.code).first()
-    if existing:
+    # Auto-generate a unique code from the type when the admin didn't supply one
+    # (e.g. ASSET-003), so accounts can be added with just a name + type.
+    code = (payload.code or "").strip()
+    if not code:
+        prefix = str(payload.type).upper()[:6]
+        n = db.query(Account).filter(Account.type == payload.type).count() + 1
+        code = f"{prefix}-{n:03d}"
+        while db.query(Account).filter(Account.code == code).first():
+            n += 1
+            code = f"{prefix}-{n:03d}"
+
+    if db.query(Account).filter(Account.code == code).first():
         raise HTTPException(status_code=400, detail="Account code already exists")
 
     account = Account(
-        code=payload.code,
+        code=code,
         name=payload.name,
         type=payload.type,
-        owner_type=payload.owner_type,
+        category=(payload.category or "").strip() or None,
+        owner_type=payload.owner_type or "society",
         owner_id=payload.owner_id,
         is_active=True,
     )
     db.add(account)
+    db.commit()
+    db.refresh(account)
+    return account
+
+
+def list_accounts(
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(require_admin),
+):
+    """Full chart of accounts (incl. accounts with no transactions yet), with
+    category, active flag, and running totals. Used by the Accounts admin page."""
+    rows = (db.query(
+                Account.id.label("id"), Account.code.label("code"),
+                Account.name.label("name"), Account.type.label("type"),
+                Account.category.label("category"), Account.owner_type.label("owner_type"),
+                Account.is_active.label("is_active"),
+                func.coalesce(func.sum(JournalLine.dr_amount), 0).label("dr"),
+                func.coalesce(func.sum(JournalLine.cr_amount), 0).label("cr"))
+            .outerjoin(JournalLine, JournalLine.account_id == Account.id)
+            .outerjoin(JournalEntry, JournalEntry.id == JournalLine.journal_entry_id)
+            .group_by(Account.id, Account.code, Account.name, Account.type,
+                      Account.category, Account.owner_type, Account.is_active)
+            .order_by(Account.type.asc(), Account.code.asc())
+            .all())
+    return [
+        {
+            "account_id": r.id, "account_code": r.code, "account_name": r.name,
+            "account_type": r.type.value if hasattr(r.type, "value") else str(r.type),
+            "category": r.category,
+            "owner_type": r.owner_type.value if hasattr(r.owner_type, "value") else str(r.owner_type),
+            "is_active": r.is_active,
+            "total_debit": r.dr, "total_credit": r.cr,
+        }
+        for r in rows
+    ]
+
+
+def update_account(
+    account_id: int,
+    payload: AccountUpdate,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(require_admin),
+):
+    """Edit an existing account's name, type, category, or active flag."""
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if payload.name is not None:
+        account.name = payload.name.strip()
+    if payload.type is not None:
+        account.type = payload.type
+    if payload.category is not None:
+        account.category = payload.category.strip() or None
+    if payload.is_active is not None:
+        account.is_active = payload.is_active
     db.commit()
     db.refresh(account)
     return account
@@ -249,6 +315,127 @@ def trial_balance(
             }
             for row in rows
         ],
+    }
+
+
+def _account_totals(db, types=None, from_date=None, to_date=None):
+    """Per-account (debit, credit) totals from posted journal lines, with
+    optional account-type and date-range filters. Shared by P&L + Balance Sheet."""
+    q = (db.query(
+            Account.id.label("id"), Account.code.label("code"),
+            Account.name.label("name"), Account.type.label("type"),
+            Account.category.label("category"),
+            func.coalesce(func.sum(JournalLine.dr_amount), 0).label("dr"),
+            func.coalesce(func.sum(JournalLine.cr_amount), 0).label("cr"))
+         .join(JournalLine, JournalLine.account_id == Account.id)
+         .join(JournalEntry, JournalEntry.id == JournalLine.journal_entry_id)
+         .group_by(Account.id, Account.code, Account.name, Account.type, Account.category)
+         .order_by(Account.code.asc()))
+    if types:
+        q = q.filter(Account.type.in_(types))
+    if from_date:
+        q = q.filter(JournalEntry.created_at >= from_date)
+    if to_date:
+        q = q.filter(JournalEntry.created_at <= to_date)
+    return q.all()
+
+
+def profit_and_loss(
+    from_date: datetime | None = Query(default=None),
+    to_date: datetime | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(require_admin),
+):
+    """Income & Expenditure statement for a period. Income is credit-natured,
+    expense is debit-natured; net = income − expense (surplus if positive)."""
+    rows = _account_totals(db, types=[AccountTypeEnum.income, AccountTypeEnum.expense],
+                           from_date=from_date, to_date=to_date)
+
+    def group(side_rows, default_cat):
+        """Bifurcate accounts into category heads with subtotals."""
+        groups = {}  # category -> {"category", "subtotal", "accounts": [...]}
+        for code, name, amount, cat in side_rows:
+            key = cat or default_cat
+            g = groups.setdefault(key, {"category": key, "subtotal": Decimal("0"), "accounts": []})
+            g["subtotal"] += amount
+            g["accounts"].append({"account_code": code, "account_name": name, "amount": amount})
+        return sorted(groups.values(), key=lambda x: x["category"].lower())
+
+    income_rows, expense_rows = [], []
+    total_income = total_expense = Decimal("0")
+    for r in rows:
+        dr, cr = Decimal(r.dr), Decimal(r.cr)
+        tval = r.type.value if hasattr(r.type, "value") else str(r.type)
+        if tval == "income":
+            amt = cr - dr
+            total_income += amt
+            income_rows.append((r.code, r.name, amt, r.category))
+        else:
+            amt = dr - cr
+            total_expense += amt
+            expense_rows.append((r.code, r.name, amt, r.category))
+
+    net = total_income - total_expense
+    return {
+        "from_date": from_date, "to_date": to_date,
+        "income": group(income_rows, "Other Income"),
+        "total_income": total_income,
+        "expense": group(expense_rows, "Other Expenses"),
+        "total_expense": total_expense,
+        "net_profit": net,
+        "result": "surplus" if net >= 0 else "deficit",
+    }
+
+
+def balance_sheet(
+    as_of: datetime | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(require_admin),
+):
+    """Balance Sheet as of a date. Assets = Liabilities + Equity + current
+    surplus/deficit (unclosed income − expense, folded into equity so it ties)."""
+    rows = _account_totals(db, types=[AccountTypeEnum.asset, AccountTypeEnum.liability,
+                                      AccountTypeEnum.equity], to_date=as_of)
+    assets, liabilities, equity = [], [], []
+    total_assets = total_liabilities = total_equity = Decimal("0")
+    for r in rows:
+        dr, cr = Decimal(r.dr), Decimal(r.cr)
+        tval = r.type.value if hasattr(r.type, "value") else str(r.type)
+        if tval == "asset":
+            amt = dr - cr
+            total_assets += amt
+            assets.append({"account_code": r.code, "account_name": r.name, "amount": amt})
+        elif tval == "liability":
+            amt = cr - dr
+            total_liabilities += amt
+            liabilities.append({"account_code": r.code, "account_name": r.name, "amount": amt})
+        else:
+            amt = cr - dr
+            total_equity += amt
+            equity.append({"account_code": r.code, "account_name": r.name, "amount": amt})
+
+    # Current-period surplus/deficit (income − expense) up to as_of, shown under equity.
+    ie = _account_totals(db, types=[AccountTypeEnum.income, AccountTypeEnum.expense], to_date=as_of)
+    inc = exp = Decimal("0")
+    for r in ie:
+        dr, cr = Decimal(r.dr), Decimal(r.cr)
+        tval = r.type.value if hasattr(r.type, "value") else str(r.type)
+        if tval == "income":
+            inc += cr - dr
+        else:
+            exp += dr - cr
+    surplus = inc - exp
+
+    total_equity_and_surplus = total_equity + surplus
+    total_liab_eq = total_liabilities + total_equity_and_surplus
+    return {
+        "as_of": as_of,
+        "assets": assets, "total_assets": total_assets,
+        "liabilities": liabilities, "total_liabilities": total_liabilities,
+        "equity": equity, "total_equity": total_equity,
+        "current_surplus": surplus,
+        "total_liabilities_and_equity": total_liab_eq,
+        "is_balanced": abs(total_assets - total_liab_eq) < Decimal("0.01"),
     }
 
 

@@ -36,7 +36,7 @@ services:
     volumes:
       - aadhaar_data:/data/aadhaar
     ports:
-      - "8000:8000"
+      - "8002:8000"
     depends_on:
       db:
         condition: service_healthy

@@ -30,7 +30,9 @@ class ShareHolding(Base, TimestampMixin):
 
     id = Column(Integer, primary_key=True, index=True)
     member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)
-    balance = Column(Numeric(14, 2), nullable=False, default=0)
+    balance = Column(Numeric(14, 2), nullable=False, default=0)   # SM total = cd + od
+    cd_balance = Column(Numeric(14, 2), nullable=False, default=0)  # Compulsory Deposit
+    od_balance = Column(Numeric(14, 2), nullable=False, default=0)  # Optional Deposit
 
     member = relationship("Member")
 
@@ -47,7 +49,9 @@ class ShareTransaction(Base, TimestampMixin):
     transaction_id = Column(String(40), nullable=False, unique=True, index=True, default=gen_share_txn_id)
     member_id = Column(Integer, ForeignKey("members.id"), nullable=False, index=True)
     txn_type = Column(String(40), nullable=False, default=SHARE_DEPOSIT)
-    amount = Column(Numeric(14, 2), nullable=False)
+    amount = Column(Numeric(14, 2), nullable=False)          # SM = cd_amount + od_amount
+    cd_amount = Column(Numeric(14, 2), nullable=False, default=0)
+    od_amount = Column(Numeric(14, 2), nullable=False, default=0)
     txn_date = Column(Date, nullable=False)
     reference_month = Column(Date, nullable=True)          # 1st of the contribution month
     voucher_no = Column(String(40), nullable=True, index=True)  # source voucher (legacy imports)
