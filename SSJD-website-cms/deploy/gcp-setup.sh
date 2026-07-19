@@ -33,8 +33,8 @@ else
 fi
 cd "$CMS_DIR"
 
-echo "▶ 4/6  Serving on port 80…"
-sed -i 's/"8001:8000"/"80:8000"/' docker-compose.yml || true
+echo "▶ 4/6  Serving on port 8080 (port 80 is the main app)…"
+sed -i 's/"8001:8000"/"8080:8000"/' docker-compose.yml || true
 
 echo "▶ 5/6  Preparing secrets (.env)…"
 if [ ! -f .env ]; then
@@ -44,7 +44,8 @@ DJANGO_SETTINGS_MODULE=config.settings.prod
 SECRET_KEY=$(openssl rand -hex 50)
 DEBUG=False
 ALLOWED_HOSTS=$IP
-CORS_ALLOWED_ORIGINS=http://$IP
+CORS_ALLOWED_ORIGINS=http://$IP:8080
+CSRF_TRUSTED_ORIGINS=http://$IP:8080
 POSTGRES_DB=ssjd_cms
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
@@ -52,7 +53,7 @@ DJANGO_SUPERUSER_EMAIL=admin@ssjd.coop
 DJANGO_SUPERUSER_PASSWORD=$ADMIN_PW
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 MEDIA_STORAGE=local
-PORTAL_URL=http://$IP:3000
+PORTAL_URL=http://$IP
 EOF
   echo "   generated .env (admin password: $ADMIN_PW)"
 else
@@ -60,11 +61,13 @@ else
 fi
 
 echo "▶ 6/6  Building & starting the stack (first build ~3-5 min)…"
-sudo docker compose up -d --build
+sudo docker compose --env-file .env up -d --build
 
 echo ""
 echo "✅ Done."
-echo "   Website : http://$IP/"
-echo "   Admin   : http://$IP/admin/   (email: admin@ssjd.coop)"
-echo "   API docs: http://$IP/api/docs/"
+echo "   Website : http://$IP:8080/"
+echo "   Admin   : http://$IP:8080/admin/   (email: admin@ssjd.coop)"
+echo "   API docs: http://$IP:8080/api/docs/"
 echo "   Admin password is in $CMS_DIR/.env (DJANGO_SUPERUSER_PASSWORD)."
+echo ""
+echo "   NOTE: open TCP 8080 in the GCP firewall (see the instructions Claude gave)."
