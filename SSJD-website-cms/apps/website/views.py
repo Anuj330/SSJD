@@ -147,25 +147,24 @@ APP_FEATURES = ["Check balances & statements", "Pay loan instalments online",
                 "Open FDs & RDs in minutes", "Get instant transaction alerts",
                 "Locate branches & support"]
 
-STATIC_TESTIMONIALS = [
-    {"id": 1, "stars": STARS, "quote": "The team helped me open an FD in minutes and the returns are the best I found anywhere.", "name": "Sunita Deshmukh", "role": "Member since 2014"},
-    {"id": 2, "stars": STARS, "quote": "Got my business loan approved faster than any bank, with people who actually understand small traders.", "name": "Ramesh Patil", "role": "Shop owner"},
-    {"id": 3, "stars": STARS, "quote": "It feels good knowing the society is owned by members like me. Truly transparent.", "name": "Anjali More", "role": "Teacher"},
-]
+# No fabricated testimonials — the section stays hidden until real ones are
+# added via the CMS admin (Testimonials).
+STATIC_TESTIMONIALS = []
 
+# Placeholder notices — replaced by real ones added in the CMS admin (Notices).
 STATIC_NEWS = [
     {"delay": 0, "badge": "Notice", "badgeBg": "#e8f4fb", "badgeInk": "#0369A1", "date": "Recent",
-     "title": "Revised FD interest rates effective this quarter", "desc": "Updated deposit rates are now in effect across all schemes. Visit a branch for details."},
-    {"delay": 70, "badge": "News", "badgeBg": "#eafaf1", "badgeInk": "#059669", "date": "Recent",
-     "title": "New branch opening to serve more members", "desc": "We continue to expand our neighbourhood presence — a new branch is opening soon."},
+     "title": "Welcome to Shree Shyam Jan Kalyan", "desc": "Our member-owned co-operative thrift & credit society is now serving members in Kirari Suleman Nagar, Delhi."},
+    {"delay": 70, "badge": "Notice", "badgeBg": "#eafaf1", "badgeInk": "#059669", "date": "Recent",
+     "title": "Deposit & loan services available", "desc": "Visit the head office for savings, fixed & recurring deposits, and loan schemes."},
     {"delay": 140, "badge": "Notice", "badgeBg": "#fef3e8", "badgeInk": "#d97706", "date": "Recent",
-     "title": "Annual general meeting announcement", "desc": "Members are invited to the AGM. Agenda and venue will be shared shortly."},
+     "title": "Passbook update window", "desc": "Passbooks are updated between the 16th and 30th of each month. Please carry your passbook."},
 ]
 
 STATIC_BRANCHES = [
-    {"head": True, "name": "Head Office", "address": "Main Road, City Centre", "phone": "+91 20 2445 5667", "hours": "Mon–Sat · 9:30 AM – 6:00 PM"},
-    {"head": False, "name": "East Branch", "address": "Market Square, East Zone", "phone": "+91 20 2445 5668", "hours": "Mon–Sat · 10:00 AM – 6:00 PM"},
-    {"head": False, "name": "West Branch", "address": "Station Road, West Zone", "phone": "+91 20 2445 5669", "hours": "Mon–Sat · 10:00 AM – 6:00 PM"},
+    {"head": True, "name": "Head Office",
+     "address": "372/10, Beer Bazar, Gaurav Nagar, Kirari Suleman Nagar, Delhi-110086",
+     "phone": "9313140202", "hours": "Mon–Sat 10AM–2PM & 3–7PM · Closed Tuesday"},
 ]
 
 
@@ -200,10 +199,11 @@ def home(request):
     branch_list = [{"head": i == 0, "name": b.branch_name, "address": f"{b.address}, {b.city}",
                     "phone": b.phone or site.contact_phone, "hours": "Mon–Sat · 9:30 AM – 6:00 PM"}
                    for i, b in enumerate(branches)] or STATIC_BRANCHES
-    counters = [{"value": f"{len(branch_list)}+", "label": "Branches"},
-                {"value": "25,000+", "label": "Members served"},
-                {"value": "₹486 Cr+", "label": "Deposits managed"},
-                {"value": "30+", "label": "Years of trust"}]
+    # Honest, verifiable facts only — no fabricated member/deposit figures.
+    counters = [{"value": "2025", "label": "Registered"},
+                {"value": "Delhi", "label": "Head office"},
+                {"value": "6% p.a.", "label": "Share money interest"},
+                {"value": "₹10", "label": "Flat monthly late fee"}]
     testi_dots = list(range(len(testimonials)))
 
     portal = settings.PORTAL_URL.rstrip("/")

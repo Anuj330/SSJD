@@ -9,7 +9,7 @@ CACHE_KEY = "site_settings_singleton"
 class SiteSetting(models.Model):
     """Singleton holding global website settings."""
     # Branding
-    site_name = models.CharField(max_length=150, default="SSJD Cooperative")
+    site_name = models.CharField(max_length=150, default="Shree Shyam Jan Kalyan Co-operative (U) Thrift & Credit Society Ltd.")
     logo = models.ImageField(upload_to="settings/", blank=True, null=True, validators=[validate_image])
     favicon = models.ImageField(upload_to="settings/", blank=True, null=True, validators=[validate_image])
 
