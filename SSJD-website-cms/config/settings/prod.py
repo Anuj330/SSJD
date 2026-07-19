@@ -13,12 +13,15 @@ if not SECRET_KEY or SECRET_KEY in ("insecure-dev-key-change-me",  # noqa: F405
 if not ALLOWED_HOSTS or ALLOWED_HOSTS == ["*"]:  # noqa: F405
     raise ImproperlyConfigured("ALLOWED_HOSTS must be explicitly set in production.")
 
-# HTTPS / cookies / headers
+# HTTPS / cookies / headers.
+# Secure cookies only work over HTTPS — browsers won't set them over plain HTTP,
+# which breaks the admin login (CSRF). Default to True, but allow turning off for
+# an HTTP-only (pre-TLS) deployment via env. Turn these back on once HTTPS is set up.
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)  # noqa: F405
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", True)  # noqa: F405
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", True)  # noqa: F405
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", 60 * 60 * 24 * 30))  # noqa: F405
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True

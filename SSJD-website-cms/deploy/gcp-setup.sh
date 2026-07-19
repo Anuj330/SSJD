@@ -46,6 +46,10 @@ DEBUG=False
 ALLOWED_HOSTS=$IP
 CORS_ALLOWED_ORIGINS=http://$IP:8080
 CSRF_TRUSTED_ORIGINS=http://$IP:8080
+# HTTP-only deployment (no TLS yet) — secure cookies can't be set over http.
+SESSION_COOKIE_SECURE=False
+CSRF_COOKIE_SECURE=False
+SECURE_HSTS_SECONDS=0
 POSTGRES_DB=ssjd_cms
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
