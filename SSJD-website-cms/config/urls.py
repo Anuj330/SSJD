@@ -4,9 +4,9 @@ Public + CMS REST API is mounted under /api/v1/. Each app owns its router.
 Swagger / ReDoc are served from /api/docs/ and /api/redoc/.
 """
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve as media_serve
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -38,5 +38,9 @@ urlpatterns = [
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve user-uploaded media in production too (Django only auto-serves it in
+# DEBUG). Fine for this site's traffic; gunicorn streams the file. For higher
+# scale, move media to S3 (MEDIA_STORAGE=s3) or let Caddy serve the volume.
+urlpatterns += [
+    re_path(r"^media/(?P<path>.*)$", media_serve, {"document_root": settings.MEDIA_ROOT}),
+]
