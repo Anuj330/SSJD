@@ -14,8 +14,10 @@ CSV columns -> DB mapping:
     PanNo       -> MemberProfile.pan
     NomineeName -> MemberProfile.nominee1
 
-Idempotent: a row is skipped if a profile with the same membership_number exists.
-Placeholder values (Not mentioned / Required / W/o. / blank) are stored as NULL.
+Upsert: a member with the same membership_number (acno) is UPDATED with the CSV
+values (non-placeholder fields only); new acnos are created.
+Placeholder values (Not mentioned / Required / W/o. / blank) are stored as NULL /
+skipped on update (existing value kept).
 """
 
 import csv
@@ -51,11 +53,12 @@ def parse_date(v):
 
 def run(path):
     db = SessionLocal()
-    created = skipped = 0
+    created = updated = skipped = 0
     # Phones already used (Member.phone is unique) — avoid collisions.
     used_phones = {p for (p,) in db.query(Member.phone).filter(Member.phone.isnot(None)).all()}
-    existing_acnos = {n for (n,) in db.query(MemberProfile.membership_number)
-                      .filter(MemberProfile.membership_number.isnot(None)).all()}
+    # acno -> existing MemberProfile (for upsert)
+    profiles_by_acno = {p.membership_number: p for p in
+                        db.query(MemberProfile).filter(MemberProfile.membership_number.isnot(None)).all()}
     try:
         with open(path, newline="", encoding="utf-8-sig") as f:
             for row in csv.DictReader(f):
@@ -65,41 +68,61 @@ def run(path):
                 if not name:
                     skipped += 1
                     continue
-                if acno is not None and acno in existing_acnos:
-                    skipped += 1
-                    continue
 
                 phone = clean(row.get("mobileno"))
-                # Member.phone is unique — only keep the first occurrence; profile keeps the real one.
+                father = clean(row.get("fathername"))
+                dob = parse_date(row.get("OpDate"))
+                email = clean(row.get("emailid"))
+                address = clean(row.get("Address"))
+                aadhar = clean(row.get("AdhaarNo"))
+                pan = clean(row.get("PanNo"))
+                nominee = clean(row.get("NomineeName"))
+
+                existing = profiles_by_acno.get(acno) if acno is not None else None
+                if existing:
+                    # UPDATE: apply non-null CSV values, keep existing otherwise.
+                    member = db.query(Member).filter(Member.id == existing.member_id).first()
+                    existing.name = name
+                    if member:
+                        member.name = name
+                        if address:
+                            member.address = address
+                        # only change phone if it's free (unique constraint)
+                        if phone and phone not in used_phones and phone != member.phone:
+                            if member.phone:
+                                used_phones.discard(member.phone)
+                            member.phone = phone
+                            used_phones.add(phone)
+                    if father:  existing.father_name = father
+                    if dob:     existing.date_of_joining = dob
+                    if email:   existing.email = email
+                    if phone:   existing.phone_number = phone
+                    if address: existing.address = address
+                    if aadhar:  existing.aadhar = aadhar
+                    if pan:     existing.pan = pan
+                    if nominee: existing.nominee1 = nominee
+                    updated += 1
+                    continue
+
+                # CREATE new member
                 member_phone = phone if phone and phone not in used_phones else None
                 if member_phone:
                     used_phones.add(member_phone)
-
-                address = clean(row.get("Address"))
-
                 member = Member(name=name, phone=member_phone, address=address, is_active=True)
                 db.add(member)
                 db.flush()  # get member.id
-
-                db.add(MemberProfile(
-                    member_id=member.id,
-                    name=name,
-                    father_name=clean(row.get("fathername")),
-                    membership_number=acno,
-                    date_of_joining=parse_date(row.get("OpDate")),
-                    email=clean(row.get("emailid")),
-                    phone_number=phone,
-                    address=address,
-                    aadhar=clean(row.get("AdhaarNo")),
-                    pan=clean(row.get("PanNo")),
-                    nominee1=clean(row.get("NomineeName")),
-                ))
+                prof = MemberProfile(
+                    member_id=member.id, name=name, father_name=father,
+                    membership_number=acno, date_of_joining=dob, email=email,
+                    phone_number=phone, address=address, aadhar=aadhar, pan=pan, nominee1=nominee,
+                )
+                db.add(prof)
                 if acno is not None:
-                    existing_acnos.add(acno)
+                    profiles_by_acno[acno] = prof
                 created += 1
 
         db.commit()
-        print(f"✓ Imported {created} members ({skipped} skipped).")
+        print(f"✓ Members: {created} created, {updated} updated, {skipped} skipped.")
         print(f"  Members in DB: {db.query(Member).count()} · Profiles: {db.query(MemberProfile).count()}")
     except Exception as exc:  # noqa: BLE001
         db.rollback()

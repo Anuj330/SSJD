@@ -171,16 +171,23 @@ def run(path, dry_run=False, reset=False):
                     s.skipped_bad_data += 1
                     continue
 
-                deposit = sm + cd + od  # rule: monthly deposit = sm + cd + OD
+                # SM = CD + OD. Fold the small 'sm' head into CD (compulsory) so the
+                # per-txn CD+OD always equals the deposit amount.
+                cd_part = sm + cd
+                od_part = od
+                deposit = cd_part + od_part  # monthly deposit = sm + cd + OD
                 csv_total = parse_decimal(row.get("total"))
                 if csv_total is not None and csv_total != deposit:
                     s.total_mismatches += 1
 
                 g = groups.get((acno, voucher))
                 if g is None:
-                    groups[(acno, voucher)] = {"deposit": deposit, "date": txn_date, "particulars": particulars}
+                    groups[(acno, voucher)] = {"deposit": deposit, "cd": cd_part, "od": od_part,
+                                               "date": txn_date, "particulars": particulars}
                 else:
                     g["deposit"] += deposit
+                    g["cd"] += cd_part
+                    g["od"] += od_part
                     g["date"] = min(g["date"], txn_date)
                     g["particulars"] = g["particulars"] or particulars
 
@@ -205,7 +212,8 @@ def run(path, dry_run=False, reset=False):
 
             db.add(ShareTransaction(
                 transaction_id=gen_share_txn_id(), member_id=member_id,
-                txn_type=SHARE_DEPOSIT, amount=deposit, txn_date=txn_date,
+                txn_type=SHARE_DEPOSIT, amount=deposit,
+                cd_amount=g["cd"], od_amount=g["od"], txn_date=txn_date,
                 reference_month=ref_month, voucher_no=voucher,
                 journal_entry_id=entry_id, remarks=g["particulars"],
             ))
@@ -232,13 +240,19 @@ def run(path, dry_run=False, reset=False):
         else:
             db.commit()
             db.execute(text(
-                "UPDATE share_holdings h SET balance = COALESCE(("
-                "  SELECT SUM(CASE WHEN t.txn_type = :wd THEN -t.amount "
-                "               WHEN t.txn_type = :dep THEN t.amount ELSE 0 END) "
-                "  FROM share_transactions t WHERE t.member_id = h.member_id), 0)"
+                "UPDATE share_holdings h SET "
+                "  balance = COALESCE((SELECT SUM(CASE WHEN t.txn_type = :wd THEN -t.amount "
+                "     WHEN t.txn_type = :dep THEN t.amount ELSE 0 END) "
+                "     FROM share_transactions t WHERE t.member_id = h.member_id), 0), "
+                "  cd_balance = COALESCE((SELECT SUM(CASE WHEN t.txn_type = :wd THEN -t.cd_amount "
+                "     WHEN t.txn_type = :dep THEN t.cd_amount ELSE 0 END) "
+                "     FROM share_transactions t WHERE t.member_id = h.member_id), 0), "
+                "  od_balance = COALESCE((SELECT SUM(CASE WHEN t.txn_type = :wd THEN -t.od_amount "
+                "     WHEN t.txn_type = :dep THEN t.od_amount ELSE 0 END) "
+                "     FROM share_transactions t WHERE t.member_id = h.member_id), 0)"
             ), {"wd": "withdrawal", "dep": SHARE_DEPOSIT})
             db.commit()
-            logger.info("Recomputed share_holdings balances from share_transactions.")
+            logger.info("Recomputed share_holdings balances (SM / CD / OD) from share_transactions.")
 
         s.log(dry_run)
         return s
