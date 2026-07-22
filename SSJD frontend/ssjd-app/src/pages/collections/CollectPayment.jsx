@@ -4,6 +4,7 @@ import Card, { CardTitle } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Select from '../../components/ui/Select';
+import SearchSelect from '../../components/ui/SearchSelect';
 import EmptyState from '../../components/ui/EmptyState';
 import { useApi } from '../../hooks/useApi';
 import { useAuthStore } from '../../store/authStore';
@@ -114,10 +115,10 @@ export default function CollectPayment() {
       </div>
 
       <Card>
-        <Select
+        <SearchSelect
           label="Select member"
           value={memberId}
-          onChange={(e) => setMemberId(e.target.value)}
+          onChange={setMemberId}
           options={memberList.map((m) => ({ value: String(m.id), label: `${m.name} (#${m.id})` }))}
           placeholder="Choose a member…"
         />
