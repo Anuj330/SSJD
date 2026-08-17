@@ -18,6 +18,8 @@ import { fmtINR, fmtCompact, fmtNum, initials, avatarColor } from '../utils/form
 
 const CARD = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow)' };
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '');
+const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
+const fmtDateFull = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
 const TYPE_LABEL = { monthly_share_deposit: 'Share deposit', withdrawal: 'Withdrawal', dividend: 'Dividend' };
 
 export default function Dashboard() {
@@ -200,11 +202,16 @@ export default function Dashboard() {
   const flowRows = Array.isArray(moneyFlow?.rows) ? moneyFlow.rows : [];
   const sIsDebit = (t) => String(t).toLowerCase() === 'withdrawal';
   const byDateDesc = (a, b) => new Date(b.date) - new Date(a.date);
+  // Online payments carry an exact timestamp → show date + time. Everything else
+  // (manual/legacy entries) shows the transaction date; created_at may be the
+  // import time so we don't show a misleading clock time for those.
+  const shareWhen = (t) =>
+    t.remarks === 'Online payment' && t.created_at ? fmtDateTime(t.created_at) : fmtDateFull(t.txn_date);
   const shareActivity = shareTxns
-    .map((t) => ({ date: t.created_at || t.txn_date, label: TYPE_LABEL[t.txn_type] || t.txn_type, ref: 'Share Money', amount: Number(t.amount), cr: !sIsDebit(t.txn_type) }))
+    .map((t) => ({ date: t.created_at || t.txn_date, when: shareWhen(t), label: TYPE_LABEL[t.txn_type] || t.txn_type, ref: 'Share Money', amount: Number(t.amount), cr: !sIsDebit(t.txn_type) }))
     .sort(byDateDesc).slice(0, 8);
   const loanActivity = flowRows
-    .map((r) => ({ date: r.created_at, label: String(r.txn_type || '').replace(/_/g, ' '), ref: r.txn_ref, amount: Number(r.cr_amount) > 0 ? Number(r.cr_amount) : Number(r.dr_amount), cr: Number(r.cr_amount) > 0 }))
+    .map((r) => ({ date: r.created_at, when: fmtDateTime(r.created_at), label: String(r.txn_type || '').replace(/_/g, ' '), ref: r.txn_ref, amount: Number(r.cr_amount) > 0 ? Number(r.cr_amount) : Number(r.dr_amount), cr: Number(r.cr_amount) > 0 }))
     .sort(byDateDesc).slice(0, 8);
 
   return (
@@ -330,7 +337,7 @@ function ActivityCard({ title, items, onView, viewLabel, empty }) {
           items.map((r, i) => (
             <div key={i} className="flex items-center gap-3 rounded-[10px] px-3 py-2.5">
               <div className="flex h-9 w-9 flex-none items-center justify-center rounded-[9px]" style={{ background: r.cr ? 'var(--accent-soft)' : 'var(--amber-soft)', color: r.cr ? 'var(--accent)' : 'var(--amber)' }}>{r.cr ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}</div>
-              <div className="min-w-0 flex-1"><div className="text-[13.5px] font-semibold capitalize" style={{ color: 'var(--text)' }}>{r.label}</div><div className="num text-[11px]" style={{ color: 'var(--text-3)' }}>{r.ref}</div></div>
+              <div className="min-w-0 flex-1"><div className="text-[13.5px] font-semibold capitalize" style={{ color: 'var(--text)' }}>{r.label}</div><div className="num text-[11px]" style={{ color: 'var(--text-3)' }}>{r.when}{r.ref && r.ref !== 'Share Money' ? ` · ${r.ref}` : ''}</div></div>
               <div className="num font-bold" style={{ color: r.cr ? 'var(--accent)' : 'var(--debit)' }}>{r.cr ? '+' : '−'}{fmtINR(r.amount)}</div>
             </div>
           ))}
