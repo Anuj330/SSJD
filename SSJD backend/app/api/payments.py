@@ -16,6 +16,9 @@ from app.models.members import Member
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
+# Webhooks are signed with the webhook's own secret (set in the Razorpay
+# dashboard when you create the webhook), NOT the API key secret.
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
 
 
 def _is_mock() -> bool:
@@ -262,13 +265,13 @@ async def payment_webhook(request: Request, db: Session = Depends(get_db)):
     if not sig:
         raise HTTPException(400, "Missing signature")
 
-    expected = hmac.new(
-        RAZORPAY_KEY_SECRET.encode(),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
+    secret = RAZORPAY_WEBHOOK_SECRET or RAZORPAY_KEY_SECRET
+    if not secret:
+        raise HTTPException(503, "Webhook secret not configured")
 
-    if expected != sig:
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(expected, sig):
         raise HTTPException(400, "Invalid webhook signature")
 
     import json
