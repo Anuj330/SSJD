@@ -98,8 +98,9 @@ def verify_payment(
     if not payment:
         raise HTTPException(404, "Payment order not found")
 
-    if payment.status == PaymentStatusEnum.paid:
-        return {"message": "Payment already verified", "status": "paid"}
+    # Already fully applied (e.g. the webhook beat the browser to it)? Nothing to do.
+    if payment.journal_entry_id is not None:
+        return {"message": "Payment already processed", "status": "paid"}
 
     # Mock orders skip signature verification (test mode, no live gateway).
     if not razorpay_order_id.startswith("order_mock_"):
@@ -109,7 +110,7 @@ def verify_payment(
             message.encode(),
             hashlib.sha256,
         ).hexdigest()
-        if expected_sig != razorpay_signature:
+        if not hmac.compare_digest(expected_sig, razorpay_signature):
             payment.status = PaymentStatusEnum.failed
             db.commit()
             raise HTTPException(400, "Payment signature verification failed")
@@ -118,8 +119,8 @@ def verify_payment(
     payment.razorpay_signature = razorpay_signature
     payment.status = PaymentStatusEnum.paid
 
-    # Process the payment based on purpose
-    result = _process_payment(db, payment, current)
+    # Process the payment based on purpose (credits the deposit/loan/share).
+    result = _process_payment(db, payment, current.user_id)
 
     db.commit()
 
@@ -155,8 +156,9 @@ def _notify_payment(db, payment):
         pass
 
 
-def _process_payment(db, payment: PaymentOrder, current: CurrentUser) -> dict:
-    """After payment verification, execute the corresponding business operation."""
+def _process_payment(db, payment: PaymentOrder, created_by=None) -> dict:
+    """After payment verification, execute the corresponding business operation.
+    `created_by` is the acting user id (None when triggered by the webhook)."""
     from app.api.deposits import (
         _get_or_create_system_account, _post_journal,
         CASH_ACCOUNT_CODE,
@@ -174,7 +176,7 @@ def _process_payment(db, payment: PaymentOrder, current: CurrentUser) -> dict:
 
         cash = _get_or_create_system_account(db, CASH_ACCOUNT_CODE, "Cash / Bank", AccountTypeEnum.asset)
         entry = _post_journal(db, "deposit", f"Online deposit to {deposit.account_number}",
-                              cash.id, deposit.ledger_account_id, payment.amount, current.user_id)
+                              cash.id, deposit.ledger_account_id, payment.amount, created_by)
         deposit.principal_amount += payment.amount
         deposit.current_balance += payment.amount
         payment.journal_entry_id = entry.id
@@ -187,7 +189,7 @@ def _process_payment(db, payment: PaymentOrder, current: CurrentUser) -> dict:
 
         cash = _get_or_create_system_account(db, CASH_ACCOUNT_CODE, "Cash / Bank", AccountTypeEnum.asset)
         entry = _post_journal(db, "loan_repayment", f"Online repayment for {loan.loan_number}",
-                              cash.id, loan.ledger_account_id, payment.amount, current.user_id)
+                              cash.id, loan.ledger_account_id, payment.amount, created_by)
 
         # Apply to next unpaid installment(s)
         remaining = payment.amount
@@ -233,12 +235,14 @@ def _process_payment(db, payment: PaymentOrder, current: CurrentUser) -> dict:
         cash = get_or_create_account(db, CASH_ACCOUNT_CODE, "Cash / Bank", AccountTypeEnum.asset)
         share_cap = get_or_create_account(db, "SHARE-CAP-001", "Share Capital", AccountTypeEnum.equity)
         entry = post_journal(db, SHARE_DEPOSIT, f"Online share money from {member.name if member else payment.member_id}",
-                             cash.id, share_cap.id, payment.amount, current.user_id)
+                             cash.id, share_cap.id, payment.amount, created_by)
+        # Online deposits count as Compulsory Deposit (SM = CD + OD).
         holding.balance += payment.amount
+        holding.cd_balance = (holding.cd_balance or Decimal("0")) + payment.amount
         db.add(ShareTransaction(
             transaction_id=gen_share_txn_id(), member_id=payment.member_id, txn_type=SHARE_DEPOSIT,
-            amount=payment.amount, txn_date=date.today(), journal_entry_id=entry.id,
-            remarks="Online payment",
+            amount=payment.amount, cd_amount=payment.amount, od_amount=Decimal("0"),
+            txn_date=date.today(), journal_entry_id=entry.id, remarks="Online payment",
         ))
         payment.journal_entry_id = entry.id
         return {"new_balance": str(holding.balance)}
@@ -249,7 +253,7 @@ def _process_payment(db, payment: PaymentOrder, current: CurrentUser) -> dict:
             return {"warning": "RD account not found or inactive"}
         cash = _get_or_create_system_account(db, CASH_ACCOUNT_CODE, "Cash / Bank", AccountTypeEnum.asset)
         entry = _post_journal(db, "rd_installment", f"Online RD installment for {deposit.account_number}",
-                              cash.id, deposit.ledger_account_id, payment.amount, current.user_id)
+                              cash.id, deposit.ledger_account_id, payment.amount, created_by)
         deposit.current_balance += payment.amount
         payment.journal_entry_id = entry.id
         return {"new_balance": str(deposit.current_balance)}
@@ -287,9 +291,13 @@ async def payment_webhook(request: Request, db: Session = Depends(get_db)):
             payment = db.query(PaymentOrder).filter(
                 PaymentOrder.razorpay_order_id == order_id
             ).first()
-            if payment and payment.status != PaymentStatusEnum.paid:
-                payment.razorpay_payment_id = payment_id
+            # Apply the deposit here too — the webhook often arrives before the
+            # browser's verify call. Idempotent: skip if already processed.
+            if payment and payment.journal_entry_id is None:
+                if payment_id:
+                    payment.razorpay_payment_id = payment_id
                 payment.status = PaymentStatusEnum.paid
+                _process_payment(db, payment, None)
                 db.commit()
 
     return {"status": "ok"}
