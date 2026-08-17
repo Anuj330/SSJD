@@ -1,0 +1,71 @@
+# Full CMS stack: Postgres + Redis + Django (gunicorn) + Celery worker + beat.
+#   docker compose up --build
+# API/docs → http://localhost:8001/api/docs/   |   Admin → http://localhost:8001/admin/
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ssjd_cms}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - cms_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  web:
+    build: .
+    env_file: [.env]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      SECURE_SSL_REDIRECT: "False"
+    volumes:
+      - cms_media:/app/media
+    ports:
+      - "8001:8000"
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+
+  celery:
+    build: .
+    command: celery -A config worker -l info
+    env_file: [.env]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      RUN_MIGRATIONS: "false"
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+    volumes:
+      - cms_media:/app/media
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+
+  celery-beat:
+    build: .
+    command: celery -A config beat -l info
+    env_file: [.env]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      RUN_MIGRATIONS: "false"
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+
+volumes:
+  cms_pgdata:
+  cms_media:

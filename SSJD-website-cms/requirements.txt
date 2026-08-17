@@ -1,0 +1,29 @@
+# ── Core ────────────────────────────────────────────────────────────────
+Django==5.0.6
+djangorestframework==3.15.1
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.3.1
+django-filter==24.2
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
+
+# ── API docs ────────────────────────────────────────────────────────────
+drf-spectacular==0.27.2
+
+# ── Content / media ─────────────────────────────────────────────────────
+django-ckeditor==6.7.1
+Pillow==10.3.0
+django-storages==1.14.3
+boto3==1.34.110              # AWS S3 backend (optional; used by django-storages)
+
+# ── Background tasks / caching ──────────────────────────────────────────
+celery==5.4.0
+redis==5.0.4
+django-redis==5.4.0
+
+# ── Throttling / security helpers ───────────────────────────────────────
+django-axes==6.4.0          # brute-force login protection (optional)
+
+# ── Server ──────────────────────────────────────────────────────────────
+gunicorn==22.0.0
+whitenoise==6.6.0

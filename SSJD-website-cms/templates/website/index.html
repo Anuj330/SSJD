@@ -1,0 +1,735 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ site.site_name }}</title>
+<meta name="description" content="{{ site.meta_description }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Lora:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:'Manrope',system-ui,-apple-system,sans-serif;color:#0A2540;background:#fff;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+:root{--acc:#0EA5E9;--acc2:#22D3EE;--r:24px;--r-sm:14px}
+img{max-width:100%;display:block}
+input,button,textarea,select{font-family:inherit}
+a{text-decoration:none;color:inherit}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+@keyframes floaty2{0%,100%{transform:translateY(0)}50%{transform:translateY(12px)}}
+@keyframes blobmove{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-30px) scale(1.1)}66%{transform:translate(-25px,25px) scale(.94)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+[data-desktop-nav]{display:flex}
+[data-hamburger]{display:none}
+@media(max-width:1000px){[data-desktop-nav]{display:none}[data-hamburger]{display:inline-flex}}
+@media(max-width:760px){[data-topbar-extra]{display:none}}
+
+[data-reveal]{opacity:1}
+/* ── Responsive hardening (mobile / tablet / any screen) ───────────────── */
+img,iframe,video{max-width:100%}
+iframe{width:100%}
+@media(max-width:900px){
+  /* tighten the wide container side padding on tablets/phones */
+  [style*="padding:0 28px"]{padding-left:18px!important;padding-right:18px!important}
+}
+@media(max-width:640px){
+  /* declutter the hero: hide the absolutely-positioned floating stat cards */
+  [style*="animation:floaty"]{display:none!important}
+  /* shrink the 4-column interest-rate table so it stays readable */
+  [style*="1.4fr 1fr 1fr 1fr"]{font-size:12.5px!important}
+  [style*="padding:0 28px"]{padding-left:14px!important;padding-right:14px!important}
+}
+@media(max-width:420px){
+  [style*="1.4fr 1fr 1fr 1fr"]{grid-template-columns:1.3fr .9fr .9fr .9fr!important;font-size:11px!important}
+}
+</style>
+</head>
+<body>
+
+
+<div style="position:relative;overflow-x:hidden;background:#fff">
+
+<!-- ===================== TOP BAR ===================== -->
+{% if showTopBar %}
+<div style="background:linear-gradient(90deg,#06243f,#0c4a6e);color:#cfe6f5;font-size:13px;font-weight:500">
+  <div style="max-width:1280px;margin:0 auto;padding:9px 28px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+      <a href="tel:+919313140202" style="display:flex;align-items:center;gap:7px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--acc2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012 4.2 2 2 0 014 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8 9.6a16 16 0 006 6l1.1-1.1a2 2 0 012.1-.5c.9.3 1.8.6 2.7.7A2 2 0 0122 16.9z"/></svg>9313140202</a>
+      <a href="tel:+919910216834" data-topbar-extra style="display:flex;align-items:center;gap:7px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--acc2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7 10-7"/></svg>9910216834</a>
+      <span data-topbar-extra style="display:flex;align-items:center;gap:7px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--acc2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Mon–Sat 10AM–2PM &amp; 3–7PM · Tue closed</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div data-topbar-extra style="display:flex;align-items:center;gap:9px">
+        <a href="#" aria-label="Facebook" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center" data-hover="background:var(--acc)"><svg width="13" height="13" viewBox="0 0 24 24" fill="#cfe6f5"><path d="M14 8.5h2.2V5.3h-2.4C11.4 5.3 10 6.9 10 9.1v1.6H8v3.1h2V21h3v-7.2h2.3l.5-3.1H13V9.2c0-.5.3-.7.9-.7z"/></svg></a>
+        <a href="#" aria-label="Instagram" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#cfe6f5" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#cfe6f5" stroke="none"/></svg></a>
+        <a href="#" aria-label="LinkedIn" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 24 24" fill="#cfe6f5"><path d="M6.5 8.5h-3V20h3V8.5zM5 4a1.8 1.8 0 100 3.6A1.8 1.8 0 005 4zM20.5 20h-3v-6c0-1.5-.5-2.3-1.6-2.3-1 0-1.6.7-1.6 2.3v6h-3V8.5h3v1.3c.5-.8 1.5-1.5 2.8-1.5 2 0 3.4 1.3 3.4 4V20z"/></svg></a>
+        <a href="#" aria-label="YouTube" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 24 24" fill="#cfe6f5"><path d="M21.6 8.2a2.5 2.5 0 00-1.7-1.8C18.3 6 12 6 12 6s-6.3 0-7.9.4A2.5 2.5 0 002.4 8.2 26 26 0 002 12a26 26 0 00.4 3.8 2.5 2.5 0 001.7 1.8C5.7 18 12 18 12 18s6.3 0 7.9-.4a2.5 2.5 0 001.7-1.8A26 26 0 0022 12a26 26 0 00-.4-3.8zM10 15V9l5.2 3-5.2 3z"/></svg></a>
+      </div>
+      <a href="{{ admin_login_url }}" style="display:flex;align-items:center;gap:6px;color:#cfe6f5;font-weight:600;font-size:12.5px;padding:5px 11px;border-radius:999px" data-hover="color:#fff">Admin Login</a>
+      <a href="{{ member_login_url }}" style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:5px 13px;border-radius:999px;color:#fff;font-weight:600;font-size:12.5px" data-hover="background:var(--acc);border-color:var(--acc)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/></svg>Member Login</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ===================== NAVBAR ===================== -->
+<header style="{{ navStyle }}">
+  <div style="max-width:1280px;margin:0 auto;padding:0 28px;height:74px;display:flex;align-items:center;justify-content:space-between;gap:20px">
+    <a href="#home" style="display:flex;align-items:center;gap:13px;min-width:0">
+      <div style="width:46px;height:46px;border-radius:13px;background:linear-gradient(145deg,#0369A1,var(--acc));display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px -8px rgba(3,105,161,.6);flex-shrink:0">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M19 10v8M9 10v8M15 10v8"/><path d="M3 21h18"/></svg>
+      </div>
+      <div style="min-width:0">
+        <div style="font-weight:800;font-size:15.5px;letter-spacing:-.2px;color:{{ navInk }};line-height:1.05;white-space:nowrap">Shree Shyam Jan Kalyan</div>
+        <div style="font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:{{ navSub }};margin-top:2px">Co-operative (U) Thrift &amp; Credit Society Ltd</div>
+      </div>
+    </a>
+
+    <nav data-desktop-nav style="align-items:center;gap:6px">
+      <a href="#home" style="{{ linkStyle }}" data-hover="color:var(--acc)">Home</a>
+      <a href="#about" style="{{ linkStyle }}" data-hover="color:var(--acc)">About</a>
+      <div style="position:relative">
+        <a href="#services" style="{{ linkStyle }};display:flex;align-items:center;gap:5px" data-hover="color:var(--acc)">Schemes
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </a>
+        <div style="{{ dropStyle }}">
+          <a href="#rates" style="display:block;padding:11px 16px;border-radius:10px;color:#0A2540;font-weight:600;font-size:14px" data-hover="background:#eef6fc;color:#0369A1">Deposit Schemes</a>
+          <a href="#services" style="display:block;padding:11px 16px;border-radius:10px;color:#0A2540;font-weight:600;font-size:14px" data-hover="background:#eef6fc;color:#0369A1">Loan Schemes</a>
+          <a href="#services" style="display:block;padding:11px 16px;border-radius:10px;color:#0A2540;font-weight:600;font-size:14px" data-hover="background:#eef6fc;color:#0369A1">Savings &amp; Insurance</a>
+        </div>
+      </div>
+      <a href="#branches" style="{{ linkStyle }}" data-hover="color:var(--acc)">Branches</a>
+      <a href="#gallery" style="{{ linkStyle }}" data-hover="color:var(--acc)">Gallery</a>
+      <a href="#news" style="{{ linkStyle }}" data-hover="color:var(--acc)">News</a>
+      <a href="#contact" style="{{ linkStyle }}" data-hover="color:var(--acc)">Contact</a>
+    </nav>
+
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="#contact" style="display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,#0369A1,var(--acc));color:#fff;font-weight:700;font-size:14px;padding:11px 20px;border-radius:999px;box-shadow:0 10px 26px -10px rgba(3,105,161,.75)" data-hover="transform:translateY(-2px);box-shadow:0 16px 34px -10px rgba(3,105,161,.85)">Open Account
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <button data-hamburger aria-label="Menu" style="align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;border:1px solid rgba(10,37,64,.12);background:{{ burgerBg }};cursor:pointer;color:{{ navInk }}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== MOBILE MENU ===================== -->
+<div id="mobileMenu" data-mobile-overlay style="display:none;position:fixed;inset:0;z-index:60;background:rgba(6,36,63,.45);backdrop-filter:blur(4px)">
+  <div data-mobile-panel style="position:absolute;top:0;right:0;height:100%;width:min(82vw,340px);background:#fff;box-shadow:-20px 0 60px -20px rgba(6,36,63,.5);padding:24px;display:flex;flex-direction:column;gap:6px;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-weight:800;color:#0369A1;font-size:16px">Menu</span>
+      <button aria-label="Close" style="width:40px;height:40px;border-radius:11px;border:1px solid rgba(10,37,64,.1);background:#f4f8fb;cursor:pointer;color:#0A2540"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <a href="#home" style="padding:13px 14px;border-radius:12px;font-weight:600;color:#0A2540" data-hover="background:#eef6fc">Home</a>
+    <a href="#about" style="padding:13px 14px;border-radius:12px;font-weight:600;color:#0A2540" data-hover="background:#eef6fc">About Us</a>
+    <a href="#services" style="padding:13px 14px;border-radius:12px;font-weight:600;color:#0A2540" data-hover="background:#eef6fc">Schemes &amp; Loans</a>
+    <a href="#rates" style="padding:13px 14px;border-radius:12px;font-weight:600;color:#0A2540" data-hover="background:#eef6fc">Interest Rates</a>
+    <a href="#branches" style="padding:13px 14px;border-radius:12px;font-weight:600;color:#0A2540" data-hover="background:#eef6fc">Branches</a>
+    <a href="#gallery" style="padding:13px 14px;border-radius:12px;font-weight:600;color:#0A2540" data-hover="background:#eef6fc">Gallery</a>
+    <a href="#news" style="padding:13px 14px;border-radius:12px;font-weight:600;color:#0A2540" data-hover="background:#eef6fc">News &amp; Notices</a>
+    <a href="#contact" style="padding:13px 14px;border-radius:12px;font-weight:600;color:#0A2540" data-hover="background:#eef6fc">Contact</a>
+    <a href="{{ member_login_url }}" style="margin-top:10px;text-align:center;padding:13px;border-radius:12px;font-weight:700;border:1.5px solid #0369A1;color:#0369A1">Member Login</a>
+    <a href="{{ admin_login_url }}" style="text-align:center;padding:12px;border-radius:12px;font-weight:700;color:#0369A1">Admin Login</a>
+    <a href="#contact" style="text-align:center;padding:13px;border-radius:12px;font-weight:700;background:linear-gradient(135deg,#0369A1,var(--acc));color:#fff">Open Account</a>
+  </div>
+</div>
+
+<!-- ===================== HERO ===================== -->
+<section id="home" style="position:relative;background:linear-gradient(160deg,#06243f 0%,#0c4a6e 48%,#0369A1 100%);overflow:hidden">
+  <div style="position:absolute;top:-120px;right:-100px;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.32),transparent 65%);animation:blobmove 18s ease-in-out infinite;pointer-events:none"></div>
+  <div style="position:absolute;bottom:-160px;left:-120px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(14,165,233,.3),transparent 65%);animation:blobmove 22s ease-in-out infinite reverse;pointer-events:none"></div>
+
+  <div style="position:relative;max-width:1280px;margin:0 auto;padding:64px 28px 92px;display:flex;align-items:center;gap:54px;flex-wrap:wrap">
+    <!-- copy -->
+    <div style="flex:1 1 440px;min-width:300px;color:#fff;position:relative;z-index:2">
+      <div data-reveal style="display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);padding:7px 15px;border-radius:999px;font-size:13px;font-weight:600;color:#d6eefb;margin-bottom:24px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(52,211,153,.25)"></span>
+        A registered co-operative society · Kirari Suleman Nagar, Delhi
+      </div>
+      <h1 data-reveal data-reveal-delay="80" style="font-size:clamp(34px,5vw,56px);line-height:1.04;font-weight:800;letter-spacing:-1.4px;margin:0 0 8px">Banking built<br>for your <span style="background:linear-gradient(120deg,var(--acc2),#bff0ff);-webkit-background-clip:text;background-clip:text;color:transparent">community.</span></h1>
+      <p data-reveal data-reveal-delay="140" style="font-family:'Lora',serif;font-style:italic;font-size:clamp(17px,2.1vw,21px);color:#bcdcef;margin:0 0 14px;min-height:30px">{{ heroTagline|safe }}</p>
+      <p data-reveal data-reveal-delay="200" style="font-size:16.5px;line-height:1.7;color:#cfe6f5;max-width:520px;margin:0 0 30px">Fixed &amp; recurring deposits, fast loans, savings schemes and insurance — all backed by cooperative values, transparent rates and warm, personal service.</p>
+      <div data-reveal data-reveal-delay="260" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:34px">
+        <a href="#services" style="display:inline-flex;align-items:center;gap:9px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#053450;font-weight:800;padding:15px 26px;border-radius:999px;font-size:15.5px;box-shadow:0 16px 40px -14px rgba(34,211,238,.7)" data-hover="transform:translateY(-3px)">Apply for Loan
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a href="#rates" style="display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.28);color:#fff;font-weight:700;padding:15px 26px;border-radius:999px;font-size:15.5px" data-hover="background:rgba(255,255,255,.2)">Explore Schemes</a>
+      </div>
+      <!-- trust badges -->
+      <div data-reveal data-reveal-delay="320" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#bcdcef;background:rgba(255,255,255,.07);padding:7px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.12)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--acc2)" stroke-width="2"><path d="M12 3 4 6v5c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6l-8-3z"/><path d="m9 11.5 2 2 4-4.2"/></svg>Delhi Co-op Act, 2003</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#bcdcef;background:rgba(255,255,255,.07);padding:7px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.12)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--acc2)" stroke-width="2"><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M8 9V6a4 4 0 018 0v3"/></svg>Reg. No. 10950/2025</span>
+        <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#bcdcef;background:rgba(255,255,255,.07);padding:7px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.12)">Member-owned · Reg. 2025</span>
+      </div>
+    </div>
+
+    <!-- visual: carousel + floating cards -->
+    <div data-reveal data-reveal-delay="180" style="flex:1 1 420px;min-width:300px;position:relative;z-index:2">
+      <div style="position:relative;border-radius:calc(var(--r) + 6px);overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14);aspect-ratio:4/3.2">
+        {% for l in heroLayers %}
+          <div style="position:absolute;inset:0;transition:opacity 1.1s ease;opacity:{{ l.op }}">
+            <img src="{{ l.src }}" style="width:100%;height:100%;object-fit:cover" loading="lazy" alt="">
+            <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,36,63,.05),rgba(6,36,63,.55));pointer-events:none"></div>
+            <div style="position:absolute;left:22px;bottom:22px;color:#fff;pointer-events:none">
+              <div style="font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--acc2)">{{ l.kicker }}</div>
+              <div style="font-size:22px;font-weight:800;letter-spacing:-.4px;margin-top:3px">{{ l.title }}</div>
+            </div>
+          </div>
+        {% endfor %}
+        <!-- arrows -->
+        <button aria-label="Previous" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,.85);backdrop-filter:blur(6px);cursor:pointer;display:flex;align-items:center;justify-content:center;color:#0369A1" data-hover="background:#fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        <button aria-label="Next" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,.85);backdrop-filter:blur(6px);cursor:pointer;display:flex;align-items:center;justify-content:center;color:#0369A1" data-hover="background:#fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        <!-- dots -->
+        <div style="position:absolute;right:20px;top:18px;display:flex;gap:7px">
+          {% for d in heroDots %}
+            <button aria-label="Go to slide" style="width:{{ d.w }};height:8px;border-radius:999px;border:none;cursor:pointer;background:{{ d.bg }};transition:all .4s ease"></button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- floating stat card -->
+      <div style="position:absolute;left:-22px;bottom:42px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.6);border-radius:18px;padding:15px 18px;box-shadow:0 24px 50px -22px rgba(0,0,0,.45);animation:floaty 6s ease-in-out infinite;min-width:160px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#0369A1,var(--acc));display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/></svg></div>
+          <div><div style="font-size:21px;font-weight:800;color:#0A2540;letter-spacing:-.5px">₹10</div><div style="font-size:11.5px;font-weight:600;color:#5b7185">Flat monthly late fee</div></div>
+        </div>
+      </div>
+      <div style="position:absolute;right:-14px;top:30px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.6);border-radius:18px;padding:13px 16px;box-shadow:0 24px 50px -22px rgba(0,0,0,.45);animation:floaty2 7s ease-in-out infinite">
+        <div style="display:flex;align-items:center;gap:9px">
+          <div style="display:flex;margin-right:2px">
+            <span style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#34d399,#059669);border:2px solid #fff"></span>
+            <span style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);border:2px solid #fff;margin-left:-9px"></span>
+            <span style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#0369A1,#22d3ee);border:2px solid #fff;margin-left:-9px"></span>
+          </div>
+          <div><div style="font-size:15px;font-weight:800;color:#0A2540;letter-spacing:-.3px">Member-owned</div><div style="font-size:11px;font-weight:600;color:#5b7185">your money, your society</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- wave -->
+  <svg viewBox="0 0 1440 90" preserveAspectRatio="none" style="display:block;width:100%;height:64px;position:relative;z-index:1"><path d="M0 60 C 240 90 480 30 720 50 C 960 70 1200 30 1440 55 L1440 90 L0 90 Z" fill="#ffffff"/></svg>
+</section>
+
+<!-- ===================== ABOUT ===================== -->
+<section id="about" style="background:#fff;padding:84px 28px">
+  <div style="max-width:1280px;margin:0 auto;display:flex;gap:60px;align-items:center;flex-wrap:wrap">
+    <div data-reveal style="flex:1 1 400px;min-width:300px;position:relative">
+      <div style="border-radius:var(--r);overflow:hidden;box-shadow:0 30px 70px -28px rgba(3,105,161,.4);aspect-ratio:4/4.4">
+        <img src="" style="width:100%;height:100%;object-fit:cover" loading="lazy" alt="">
+      </div>
+      <!-- experience badge -->
+      <div style="position:absolute;right:-18px;bottom:-22px;background:linear-gradient(145deg,#0369A1,#06243f);color:#fff;border-radius:22px;padding:22px 26px;box-shadow:0 26px 54px -20px rgba(3,105,161,.7);text-align:center;animation:floaty 7s ease-in-out infinite">
+        <div style="font-size:42px;font-weight:800;letter-spacing:-1px;line-height:1">35<span style="color:var(--acc2)">+</span></div>
+        <div style="font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#bcdcef;margin-top:4px">Years of trust</div>
+      </div>
+      <div style="position:absolute;left:-16px;top:30px;background:#fff;border-radius:16px;padding:12px 15px;box-shadow:0 18px 40px -18px rgba(0,0,0,.35);display:flex;align-items:center;gap:9px;animation:floaty2 6s ease-in-out infinite">
+        <div style="width:34px;height:34px;border-radius:10px;background:#e9f7ef;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div style="font-size:12.5px;font-weight:700;color:#0A2540;line-height:1.2">Audited &amp;<br>compliant</div>
+      </div>
+    </div>
+
+    <div data-reveal data-reveal-delay="120" style="flex:1 1 420px;min-width:300px">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px"><span style="width:26px;height:2px;background:var(--acc)"></span>About our society</div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;line-height:1.1;margin:0 0 18px;color:#0A2540">A cooperative that puts <span style="font-family:'Lora',serif;font-style:italic;font-weight:600;color:#0369A1">members first</span></h2>
+      <p style="font-size:16.5px;line-height:1.75;color:#46596b;margin:0 0 16px">Shree Shyam Jan Kalyan is a member-owned urban thrift &amp; credit society in Kirari Suleman Nagar, Delhi, registered under the Delhi Co-operative Societies Act, 2003 (Reg. No. 10950/Sec-VII/T/C/2025). Every rupee you deposit is reinvested into the community.</p>
+      <p style="font-size:16.5px;line-height:1.75;color:#46596b;margin:0 0 30px">No shareholders to please. Just transparent rates, conservative lending and people who know your name.</p>
+
+      <div id="about-counters" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:18px">
+        {% for c in counterCards %}
+          <div style="background:#f6fafd;border:1px solid #e4eef6;border-radius:18px;padding:20px">
+            <div style="font-size:30px;font-weight:800;letter-spacing:-1px;color:#0369A1;line-height:1">{{ c.value }}</div>
+            <div style="font-size:13px;font-weight:600;color:#5b7185;margin-top:6px">{{ c.label }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SERVICES ===================== -->
+<section id="services" style="background:linear-gradient(180deg,#f4f9fc,#eaf3fa);padding:88px 28px">
+  <div style="max-width:1280px;margin:0 auto">
+    <div data-reveal style="text-align:center;max-width:640px;margin:0 auto 50px">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;justify-content:center"><span style="width:26px;height:2px;background:var(--acc)"></span>Our services<span style="width:26px;height:2px;background:var(--acc)"></span></div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;margin:0 0 14px;color:#0A2540">Everything you need, in one society</h2>
+      <p style="font-size:16.5px;line-height:1.7;color:#46596b;margin:0">From growing your savings to financing your dreams — explore products designed around real community needs.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:24px">
+      {% for s in services %}
+        <div data-reveal data-reveal-delay="{{ s.delay }}" style="background:#fff;border:1px solid #e6eef5;border-radius:var(--r);padding:30px;position:relative;overflow:hidden;transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s,border-color .35s" data-hover="transform:translateY(-8px);box-shadow:0 30px 60px -28px rgba(3,105,161,.45);border-color:#bfe0f2">
+          <div style="position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,{{ s.glow }},transparent 70%);opacity:.5"></div>
+          <div style="width:58px;height:58px;border-radius:16px;background:{{ s.iconBg }};display:flex;align-items:center;justify-content:center;color:{{ s.iconInk }};margin-bottom:20px;position:relative">{{ s.icon|safe }}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px">
+            <h3 style="font-size:20px;font-weight:800;color:#0A2540;margin:0;letter-spacing:-.4px">{{ s.name }}</h3>
+            <span style="font-size:12px;font-weight:700;color:#0369A1;background:#e8f4fb;padding:4px 10px;border-radius:999px;white-space:nowrap">{{ s.rate }}</span>
+          </div>
+          <p style="font-size:14.5px;line-height:1.6;color:#56697b;margin:0 0 18px">{{ s.desc }}</p>
+          <a href="#contact" style="display:inline-flex;align-items:center;gap:7px;color:#0369A1;font-weight:700;font-size:14px" data-hover="gap:11px">Learn more
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ===================== WHY CHOOSE US ===================== -->
+<section style="background:#06243f;padding:88px 28px;position:relative;overflow:hidden">
+  <div style="position:absolute;top:-100px;right:-80px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(14,165,233,.22),transparent 65%);pointer-events:none"></div>
+  <div style="max-width:1280px;margin:0 auto;position:relative">
+    <div data-reveal style="text-align:center;max-width:640px;margin:0 auto 50px">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:var(--acc2);font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;justify-content:center"><span style="width:26px;height:2px;background:var(--acc)"></span>Why choose us<span style="width:26px;height:2px;background:var(--acc)"></span></div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;margin:0;color:#fff">Trust you can measure</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+      {% for f in features %}
+        <div data-reveal data-reveal-delay="{{ f.delay }}" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--r);padding:28px;backdrop-filter:blur(6px);transition:transform .35s,background .35s,border-color .35s" data-hover="transform:translateY(-6px);background:rgba(255,255,255,.09);border-color:rgba(34,211,238,.4)">
+          <div style="width:54px;height:54px;border-radius:14px;background:linear-gradient(135deg,rgba(14,165,233,.25),rgba(34,211,238,.15));display:flex;align-items:center;justify-content:center;color:var(--acc2);margin-bottom:18px">{{ f.icon|safe }}</div>
+          <h3 style="font-size:18.5px;font-weight:700;color:#fff;margin:0 0 8px;letter-spacing:-.3px">{{ f.title }}</h3>
+          <p style="font-size:14px;line-height:1.6;color:#a9c6dc;margin:0">{{ f.desc }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ===================== INTEREST RATES ===================== -->
+<section id="rates" style="background:#fff;padding:88px 28px">
+  <div style="max-width:1280px;margin:0 auto">
+    <div data-reveal style="text-align:center;max-width:640px;margin:0 auto 50px">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;justify-content:center"><span style="width:26px;height:2px;background:var(--acc)"></span>Interest rates<span style="width:26px;height:2px;background:var(--acc)"></span></div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;margin:0 0 14px;color:#0A2540">Rates that work harder for you</h2>
+      <p style="font-size:16.5px;line-height:1.7;color:#46596b;margin:0">Fixed Deposit plans with assured returns. Senior citizens earn an extra 0.50% p.a.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px;margin-bottom:46px">
+      {% for p in rateCards %}
+        <div data-reveal data-reveal-delay="{{ p.delay }}" style="{{ p.cardStyle }}">
+          {% if p.featured %}
+            <div style="position:absolute;top:18px;right:18px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#053450;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 12px;border-radius:999px">Most popular</div>
+          {% endif %}
+          <div style="font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:{{ p.tenureInk }}">{{ p.tenure }}</div>
+          <div style="display:flex;align-items:baseline;gap:4px;margin:10px 0 4px"><span style="font-size:52px;font-weight:800;letter-spacing:-2px;color:{{ p.rateInk }};line-height:1">{{ p.rate }}</span><span style="font-size:20px;font-weight:700;color:{{ p.rateInk }}">%</span></div>
+          <div style="font-size:13px;font-weight:600;color:{{ p.subInk }};margin-bottom:22px">per annum</div>
+          <div style="display:flex;flex-direction:column;gap:11px;margin-bottom:26px">
+            {% for pk in p.perks %}
+              <div style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:{{ p.perkInk }}">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{ p.tick|safe }}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>{{ pk }}
+              </div>
+            {% endfor %}
+          </div>
+          <a href="#contact" style="{{ p.btnStyle }}">Open this FD</a>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- rate table -->
+    <div data-reveal style="background:#f6fafd;border:1px solid #e4eef6;border-radius:var(--r);overflow:hidden;box-shadow:0 22px 50px -30px rgba(3,105,161,.3)">
+      <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;background:linear-gradient(135deg,#0369A1,#06243f);color:#fff">
+        <div style="padding:16px 22px;font-weight:700;font-size:13.5px;letter-spacing:.04em">Tenure</div>
+        <div style="padding:16px 14px;font-weight:700;font-size:13.5px;text-align:center">Fixed Deposit</div>
+        <div style="padding:16px 14px;font-weight:700;font-size:13.5px;text-align:center">Recurring</div>
+        <div style="padding:16px 14px;font-weight:700;font-size:13.5px;text-align:center">Senior +</div>
+      </div>
+      {% for r in rateRows %}
+        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;border-top:1px solid #e4eef6;background:{{ r.bg }}">
+          <div style="padding:15px 22px;font-weight:600;font-size:14.5px;color:#0A2540">{{ r.tenure }}</div>
+          <div style="padding:15px 14px;text-align:center;font-weight:700;font-size:14.5px;color:#0369A1">{{ r.fd }}</div>
+          <div style="padding:15px 14px;text-align:center;font-weight:600;font-size:14.5px;color:#46596b">{{ r.rd }}</div>
+          <div style="padding:15px 14px;text-align:center;font-weight:700;font-size:14.5px;color:#059669">{{ r.sr }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MOBILE APP ===================== -->
+<section style="background:linear-gradient(135deg,#0369A1,#06243f);padding:88px 28px;position:relative;overflow:hidden">
+  <div style="position:absolute;bottom:-120px;right:10%;width:360px;height:360px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.25),transparent 65%);pointer-events:none"></div>
+  <div style="max-width:1280px;margin:0 auto;display:flex;gap:60px;align-items:center;flex-wrap:wrap;position:relative">
+    <div data-reveal style="flex:1 1 420px;min-width:300px;color:#fff">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:var(--acc2);font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px"><span style="width:26px;height:2px;background:var(--acc2)"></span>Mobile banking</div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;line-height:1.1;margin:0 0 16px">Your society, in your pocket</h2>
+      <p style="font-size:16.5px;line-height:1.7;color:#cfe6f5;margin:0 0 26px;max-width:480px">Open deposits, track EMIs, pay bills and chat with support — securely, anytime. Built for low-data networks and every kind of phone.</p>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:32px;max-width:440px">
+        {% for a in appFeatures %}
+          <div style="display:flex;align-items:center;gap:13px">
+            <div style="width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--acc2)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <span style="font-size:15.5px;font-weight:600;color:#eaf5fc">{{ a }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <a href="#" style="display:inline-flex;align-items:center;gap:11px;background:#fff;color:#06243f;padding:13px 22px;border-radius:14px;font-weight:700" data-hover="transform:translateY(-3px)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="#06243f"><path d="M3.6 2.3 14 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1zM15.2 13.2l2.6 2.6-3.3 1.9-2.4-2.3 3.1-2.2zm0-2.4L12.1 8.6l2.4-2.3 3.3 1.9-2.6 2.6zM19 9.7l2.4 1.4c.7.4.7 1.4 0 1.8L19 14.3 16.2 12 19 9.7z"/></svg>
+          <span style="display:flex;flex-direction:column;line-height:1.1"><span style="font-size:10px;font-weight:600;color:#5b7185">GET IT ON</span>Google Play</span>
+        </a>
+        <a href="#" style="display:inline-flex;align-items:center;gap:11px;background:#fff;color:#06243f;padding:13px 22px;border-radius:14px;font-weight:700" data-hover="transform:translateY(-3px)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="#06243f"><path d="M16.4 12.7c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.6.8-3.3.8s-1.7-.8-2.9-.8c-1.5 0-2.9.9-3.6 2.2-1.6 2.7-.4 6.8 1.1 9 .7 1.1 1.6 2.3 2.7 2.2 1.1 0 1.5-.7 2.8-.7s1.7.7 2.9.7 2-1.1 2.7-2.1c.8-1.2 1.2-2.4 1.2-2.4s-2.2-.9-2.3-3.9zM14.6 5.9c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg>
+          <span style="display:flex;flex-direction:column;line-height:1.1"><span style="font-size:10px;font-weight:600;color:#5b7185">Download on the</span>App Store</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- phone mockup -->
+    <div data-reveal data-reveal-delay="120" style="flex:1 1 340px;min-width:280px;display:flex;justify-content:center;position:relative">
+      <div style="position:relative;width:280px;height:560px;background:#0a1626;border-radius:42px;padding:11px;box-shadow:0 50px 100px -30px rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.12);animation:floaty 8s ease-in-out infinite">
+        <div style="position:absolute;top:24px;left:50%;transform:translateX(-50%);width:90px;height:24px;background:#0a1626;border-radius:999px;z-index:3"></div>
+        <div style="width:100%;height:100%;border-radius:33px;overflow:hidden;background:linear-gradient(170deg,#0369A1,#06243f);position:relative">
+          <div style="padding:46px 20px 0;color:#fff">
+            <div style="font-size:12px;color:#bcdcef;font-weight:600">Good evening</div>
+            <div style="font-size:19px;font-weight:800;margin-top:2px">Anita Deshmukh</div>
+          </div>
+          <div style="margin:18px 16px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:18px;padding:18px;backdrop-filter:blur(8px)">
+            <div style="font-size:11px;color:#bcdcef;font-weight:600;letter-spacing:.08em">TOTAL SAVINGS</div>
+            <div style="font-size:28px;font-weight:800;color:#fff;margin-top:4px;letter-spacing:-.5px">₹4,82,500</div>
+            <div style="display:flex;gap:8px;margin-top:14px">
+              <div style="flex:1;text-align:center;background:rgba(255,255,255,.12);border-radius:11px;padding:8px 0;font-size:11px;font-weight:700;color:#eaf5fc">Deposit</div>
+              <div style="flex:1;text-align:center;background:rgba(255,255,255,.12);border-radius:11px;padding:8px 0;font-size:11px;font-weight:700;color:#eaf5fc">Pay EMI</div>
+              <div style="flex:1;text-align:center;background:linear-gradient(135deg,var(--acc),var(--acc2));border-radius:11px;padding:8px 0;font-size:11px;font-weight:800;color:#053450">UPI</div>
+            </div>
+          </div>
+          <div style="margin:0 16px;background:#fff;border-radius:18px 18px 33px 33px;padding:16px;height:230px">
+            <div style="font-size:13px;font-weight:800;color:#0A2540;margin-bottom:12px">My deposits</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#f4f9fc;border-radius:12px;padding:11px 13px"><div><div style="font-size:12.5px;font-weight:700;color:#0A2540">FD · 5 years</div><div style="font-size:10.5px;color:#5b7185">Matures Mar 2029</div></div><div style="font-size:13px;font-weight:800;color:#0369A1">8.25%</div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#f4f9fc;border-radius:12px;padding:11px 13px"><div><div style="font-size:12.5px;font-weight:700;color:#0A2540">RD · Monthly</div><div style="font-size:10.5px;color:#5b7185">₹2,000 / month</div></div><div style="font-size:13px;font-weight:800;color:#0369A1">7.75%</div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;background:#f4f9fc;border-radius:12px;padding:11px 13px"><div><div style="font-size:12.5px;font-weight:700;color:#0A2540">Gold Loan</div><div style="font-size:10.5px;color:#5b7185">EMI due Jul 5</div></div><div style="font-size:13px;font-weight:800;color:#d97706">₹6,200</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- floating mini card -->
+      <div style="position:absolute;right:-6px;top:60px;background:#fff;border-radius:15px;padding:12px 14px;box-shadow:0 22px 46px -20px rgba(0,0,0,.5);display:flex;align-items:center;gap:9px;animation:floaty2 6s ease-in-out infinite">
+        <div style="width:32px;height:32px;border-radius:9px;background:#e9f7ef;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div><div style="font-size:12.5px;font-weight:800;color:#0A2540;line-height:1.1">EMI paid</div><div style="font-size:10.5px;color:#5b7185">2 sec ago</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TESTIMONIALS ===================== -->
+{% if testimonials %}
+<section style="background:#f4f9fc;padding:88px 28px;overflow:hidden">
+  <div style="max-width:1080px;margin:0 auto">
+    <div data-reveal style="text-align:center;max-width:640px;margin:0 auto 46px">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;justify-content:center"><span style="width:26px;height:2px;background:var(--acc)"></span>Member stories<span style="width:26px;height:2px;background:var(--acc)"></span></div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;margin:0;color:#0A2540">Trusted across generations</h2>
+    </div>
+
+    <div data-reveal style="position:relative;overflow:hidden;border-radius:var(--r)">
+      <div style="display:flex;transition:transform .6s cubic-bezier(.16,1,.3,1);transform:translateX({{ testiShift }})">
+        {% for t in testimonials %}
+          <div style="flex:0 0 100%;padding:6px">
+            <div style="background:rgba(255,255,255,.7);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.9);border-radius:var(--r);padding:clamp(28px,4vw,46px);box-shadow:0 30px 70px -34px rgba(3,105,161,.4);text-align:center;max-width:760px;margin:0 auto">
+              <div style="display:flex;justify-content:center;gap:4px;margin-bottom:20px">{{ t.stars }}</div>
+              <p style="font-family:'Lora',serif;font-size:clamp(18px,2.4vw,24px);line-height:1.6;color:#22384a;margin:0 0 26px;font-style:italic">“{{ t.quote }}”</p>
+              <div style="display:flex;align-items:center;justify-content:center;gap:14px">
+                <div style="width:54px;height:54px;border-radius:50%;overflow:hidden;box-shadow:0 8px 20px -8px rgba(0,0,0,.4)"><img src="" style="width:54px;height:54px;object-fit:cover" loading="lazy" alt=""></div>
+                <div style="text-align:left"><div style="font-size:16px;font-weight:800;color:#0A2540">{{ t.name }}</div><div style="font-size:13.5px;font-weight:600;color:#0369A1">{{ t.role }}</div></div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+      <div style="display:flex;justify-content:center;gap:9px;margin-top:26px">
+        {% for d in testiDots %}
+          <button aria-label="Go to review" style="width:{{ d.w }};height:9px;border-radius:999px;border:none;cursor:pointer;background:{{ d.bg }};transition:all .4s ease"></button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ===================== NEWS & NOTICES ===================== -->
+<section id="news" style="background:#fff;padding:88px 28px">
+  <div style="max-width:1280px;margin:0 auto">
+    <div data-reveal style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:42px">
+      <div>
+        <div style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px"><span style="width:26px;height:2px;background:var(--acc)"></span>News &amp; notices</div>
+        <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;margin:0;color:#0A2540">Latest announcements</h2>
+      </div>
+      <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:14.5px;border:1.5px solid #cfe3f1;padding:11px 18px;border-radius:999px" data-hover="background:#0369A1;color:#fff;border-color:#0369A1">View all notices
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px">
+      {% for n in news %}
+        <div data-reveal data-reveal-delay="{{ n.delay }}" style="background:#fff;border:1px solid #e6eef5;border-radius:var(--r);padding:26px;display:flex;flex-direction:column;transition:transform .35s,box-shadow .35s,border-color .35s" data-hover="transform:translateY(-7px);box-shadow:0 28px 56px -28px rgba(3,105,161,.4);border-color:#bfe0f2">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <span style="font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:{{ n.badgeInk }};background:{{ n.badgeBg }};padding:5px 11px;border-radius:999px">{{ n.badge }}</span>
+            <span style="font-size:12.5px;font-weight:600;color:#8094a5">{{ n.date }}</span>
+          </div>
+          <h3 style="font-size:17.5px;font-weight:700;color:#0A2540;line-height:1.35;margin:0 0 10px;letter-spacing:-.3px">{{ n.title }}</h3>
+          <p style="font-size:14px;line-height:1.6;color:#56697b;margin:0 0 20px;flex:1">{{ n.desc }}</p>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13.5px" data-hover="gap:11px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Download PDF
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ===================== GALLERY ===================== -->
+<section id="gallery" style="background:linear-gradient(180deg,#eaf3fa,#f4f9fc);padding:88px 28px">
+  <div style="max-width:1280px;margin:0 auto">
+    <div data-reveal style="text-align:center;max-width:640px;margin:0 auto 46px">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;justify-content:center"><span style="width:26px;height:2px;background:var(--acc)"></span>Gallery<span style="width:26px;height:2px;background:var(--acc)"></span></div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;margin:0 0 12px;color:#0A2540">Moments from our community</h2>
+      <p style="font-size:16.5px;color:#46596b;margin:0">Branch openings, member meets, and the people behind the society.</p>
+    </div>
+    <div data-reveal style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));grid-auto-rows:200px;gap:16px">
+      <div style="grid-row:span 2;border-radius:var(--r);overflow:hidden;box-shadow:0 18px 44px -24px rgba(3,105,161,.4)"><img src="" style="width:100%;height:100%;object-fit:cover" loading="lazy" alt=""></div>
+      <div style="border-radius:var(--r);overflow:hidden;box-shadow:0 18px 44px -24px rgba(3,105,161,.4)"><img src="" style="width:100%;height:100%;object-fit:cover" loading="lazy" alt=""></div>
+      <div style="border-radius:var(--r);overflow:hidden;box-shadow:0 18px 44px -24px rgba(3,105,161,.4)"><img src="" style="width:100%;height:100%;object-fit:cover" loading="lazy" alt=""></div>
+      <div style="border-radius:var(--r);overflow:hidden;box-shadow:0 18px 44px -24px rgba(3,105,161,.4)"><img src="" style="width:100%;height:100%;object-fit:cover" loading="lazy" alt=""></div>
+      <div style="grid-column:span 2;border-radius:var(--r);overflow:hidden;box-shadow:0 18px 44px -24px rgba(3,105,161,.4)"><img src="" style="width:100%;height:100%;object-fit:cover" loading="lazy" alt=""></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== BRANCH LOCATOR ===================== -->
+<section id="branches" style="background:#fff;padding:88px 28px">
+  <div style="max-width:1280px;margin:0 auto">
+    <div data-reveal style="text-align:center;max-width:640px;margin:0 auto 40px">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;justify-content:center"><span style="width:26px;height:2px;background:var(--acc)"></span>Branch locator<span style="width:26px;height:2px;background:var(--acc)"></span></div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;margin:0 0 22px;color:#0A2540">Find a branch near you</h2>
+      <div style="display:flex;align-items:center;gap:10px;background:#f4f9fc;border:1.5px solid #e0ecf5;border-radius:999px;padding:6px 6px 6px 18px;max-width:440px;margin:0 auto" style-focus-within="border-color:var(--acc)">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8094a5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input value="{{ branchQuery }}" placeholder="Search by city or branch name…" style="flex:1;border:none;background:transparent;outline:none;font-size:15px;color:#0A2540;min-width:0"/>
+        <button style="background:linear-gradient(135deg,#0369A1,var(--acc));color:#fff;border:none;cursor:pointer;font-weight:700;font-size:14px;padding:11px 22px;border-radius:999px">Search</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
+      <!-- map -->
+      <div data-reveal style="flex:1 1 360px;min-width:300px;border-radius:var(--r);overflow:hidden;position:relative;height:460px;background:linear-gradient(135deg,#dce9f4,#eaf3fa);border:1px solid #e0ecf5;box-shadow:0 24px 56px -30px rgba(3,105,161,.4)">
+        <svg viewBox="0 0 400 460" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%">
+          <rect width="400" height="460" fill="#e7f0f8"/>
+          <path d="M0 120 Q120 90 200 130 T400 110" stroke="#cdddec" stroke-width="14" fill="none"/>
+          <path d="M0 260 Q140 230 230 280 T400 250" stroke="#cdddec" stroke-width="14" fill="none"/>
+          <path d="M90 0 Q70 160 130 240 T100 460" stroke="#cdddec" stroke-width="14" fill="none"/>
+          <path d="M290 0 Q310 150 250 250 T300 460" stroke="#cdddec" stroke-width="14" fill="none"/>
+          <rect x="40" y="60" width="70" height="60" rx="6" fill="#d6e6f2"/>
+          <rect x="150" y="160" width="80" height="70" rx="6" fill="#d6e6f2"/>
+          <rect x="280" y="300" width="70" height="60" rx="6" fill="#d6e6f2"/>
+          <rect x="60" y="320" width="60" height="70" rx="6" fill="#d6e6f2"/>
+        </svg>
+        <div style="position:absolute;left:30%;top:32%"><div style="width:18px;height:18px;border-radius:50%;background:#0369A1;border:3px solid #fff;box-shadow:0 4px 12px rgba(3,105,161,.5)"></div></div>
+        <div style="position:absolute;left:62%;top:46%"><div style="width:16px;height:16px;border-radius:50%;background:var(--acc);border:3px solid #fff;box-shadow:0 4px 12px rgba(14,165,233,.5)"></div></div>
+        <div style="position:absolute;left:44%;top:66%"><div style="width:16px;height:16px;border-radius:50%;background:var(--acc);border:3px solid #fff;box-shadow:0 4px 12px rgba(14,165,233,.5)"></div></div>
+        <div style="position:absolute;left:22%;top:74%"><div style="width:16px;height:16px;border-radius:50%;background:var(--acc);border:3px solid #fff;box-shadow:0 4px 12px rgba(14,165,233,.5)"></div></div>
+        <div style="position:absolute;left:18px;bottom:18px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-radius:14px;padding:12px 16px;box-shadow:0 14px 34px -16px rgba(0,0,0,.4)">
+          <div style="font-size:13px;font-weight:800;color:#0A2540">Head Office</div>
+          <div style="font-size:12px;color:#5b7185;font-weight:600">Kirari Suleman Nagar, Delhi</div>
+        </div>
+      </div>
+
+      <!-- branch cards -->
+      <div data-reveal data-reveal-delay="100" style="flex:1 1 360px;min-width:300px;display:flex;flex-direction:column;gap:14px;max-height:460px;overflow-y:auto;padding-right:4px">
+        {% for b in branchesFiltered %}
+          <div style="border:1px solid #e6eef5;border-radius:18px;padding:18px 20px;transition:border-color .3s,box-shadow .3s,transform .3s" data-hover="border-color:#bfe0f2;box-shadow:0 18px 40px -24px rgba(3,105,161,.4);transform:translateY(-3px)">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
+              <h3 style="font-size:16.5px;font-weight:800;color:#0A2540;margin:0;letter-spacing:-.3px">{{ b.name }}</h3>
+              {% if b.head %}<span style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#0369A1;background:#e8f4fb;padding:4px 9px;border-radius:999px">Head Office</span>{% endif %}
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:8px;font-size:13.5px;color:#56697b;margin-bottom:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0369A1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg>{{ b.address }}</div>
+            <div style="display:flex;align-items:center;gap:16px;font-size:13px;color:#56697b">
+              <span style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369A1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012 4.2 2 2 0 014 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8 9.6a16 16 0 006 6l1.1-1.1a2 2 0 012.1-.5c.9.3 1.8.6 2.7.7A2 2 0 0122 16.9z"/></svg>{{ b.phone }}</span>
+              <span style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369A1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ b.hours }}</span>
+            </div>
+          </div>
+        {% endfor %}
+        {% if noBranches %}
+          <div style="text-align:center;color:#8094a5;font-size:14px;padding:30px;font-weight:600">No branches match “{{ branchQuery }}”. Try another city.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FAQ ===================== -->
+<section style="background:linear-gradient(180deg,#f4f9fc,#eaf3fa);padding:88px 28px">
+  <div style="max-width:860px;margin:0 auto">
+    <div data-reveal style="text-align:center;margin:0 auto 44px">
+      <div style="display:inline-flex;align-items:center;gap:8px;color:#0369A1;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px;justify-content:center"><span style="width:26px;height:2px;background:var(--acc)"></span>FAQ<span style="width:26px;height:2px;background:var(--acc)"></span></div>
+      <h2 style="font-size:clamp(28px,3.6vw,40px);font-weight:800;letter-spacing:-1px;margin:0;color:#0A2540">Questions, answered</h2>
+    </div>
+    <div data-reveal style="display:flex;flex-direction:column;gap:12px">
+      {% for q in faqs %}
+        <div style="background:#fff;border:1px solid {{ q.border }};border-radius:18px;overflow:hidden;transition:border-color .3s,box-shadow .3s;box-shadow:{{ q.shadow }}">
+          <button style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;background:transparent;border:none;cursor:pointer;text-align:left">
+            <span style="font-size:16.5px;font-weight:700;color:#0A2540;letter-spacing:-.2px">{{ q.q }}</span>
+            <span style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:{{ q.iconBg }};display:flex;align-items:center;justify-content:center;color:{{ q.iconInk }};transition:transform .3s;transform:{{ q.iconRot }}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+          </button>
+          <div style="max-height:{{ q.maxH }};overflow:hidden;transition:max-height .4s cubic-bezier(.16,1,.3,1)">
+            <p style="padding:0 24px 22px;margin:0;font-size:15px;line-height:1.7;color:#56697b">{{ q.a }}</p>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CONTACT ===================== -->
+<section id="contact" style="background:#fff;padding:88px 28px">
+  <div style="max-width:1280px;margin:0 auto;display:flex;gap:44px;flex-wrap:wrap;align-items:stretch">
+    <!-- form -->
+    <div data-reveal style="flex:1 1 440px;min-width:300px;background:linear-gradient(160deg,#06243f,#0c4a6e);border-radius:var(--r);padding:clamp(28px,4vw,46px);color:#fff;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-80px;right:-60px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(34,211,238,.25),transparent 65%);pointer-events:none"></div>
+      <div style="position:relative">
+        <div style="display:inline-flex;align-items:center;gap:8px;color:var(--acc2);font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px"><span style="width:26px;height:2px;background:var(--acc2)"></span>Get in touch</div>
+        <h2 style="font-size:clamp(26px,3.4vw,36px);font-weight:800;letter-spacing:-.8px;margin:0 0 10px">Open an account today</h2>
+        <p style="font-size:15.5px;line-height:1.6;color:#cfe6f5;margin:0 0 26px;max-width:420px">Leave your details and a relationship manager will call you within one business day.</p>
+        {% if contactSent %}
+          <div style="background:rgba(52,211,153,.16);border:1px solid rgba(52,211,153,.4);border-radius:16px;padding:22px;display:flex;align-items:center;gap:14px">
+            <div style="width:44px;height:44px;border-radius:50%;background:#34d399;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#053450" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+            <div><div style="font-size:17px;font-weight:800">Thank you!</div><div style="font-size:14px;color:#cfe6f5">We've received your request and will call you soon.</div></div>
+          </div>
+        {% endif %}
+        {% if contactForm %}
+          <form style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;gap:14px;flex-wrap:wrap">
+              <input required placeholder="Full name" style="flex:1 1 160px;min-width:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:13px;padding:14px 16px;color:#fff;font-size:15px;outline:none" style-focus="border-color:var(--acc2)"/>
+              <input required placeholder="Phone number" style="flex:1 1 160px;min-width:0;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:13px;padding:14px 16px;color:#fff;font-size:15px;outline:none" style-focus="border-color:var(--acc2)"/>
+            </div>
+            <input type="email" placeholder="Email address" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:13px;padding:14px 16px;color:#fff;font-size:15px;outline:none" style-focus="border-color:var(--acc2)"/>
+            <select style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:13px;padding:14px 16px;color:#cfe6f5;font-size:15px;outline:none" style-focus="border-color:var(--acc2)">
+              <option style="color:#0A2540">I'm interested in…</option>
+              <option style="color:#0A2540">Fixed / Recurring Deposit</option>
+              <option style="color:#0A2540">Gold or Personal Loan</option>
+              <option style="color:#0A2540">Savings Account</option>
+              <option style="color:#0A2540">Insurance</option>
+            </select>
+            <textarea placeholder="Message (optional)" rows="3" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:13px;padding:14px 16px;color:#fff;font-size:15px;outline:none;resize:vertical;font-family:inherit" style-focus="border-color:var(--acc2)"></textarea>
+            <button type="submit" style="background:linear-gradient(135deg,var(--acc),var(--acc2));color:#053450;border:none;cursor:pointer;font-weight:800;font-size:16px;padding:16px;border-radius:13px;box-shadow:0 16px 36px -14px rgba(34,211,238,.6)" data-hover="transform:translateY(-2px)">Request a call back</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- details + map -->
+    <div data-reveal data-reveal-delay="120" style="flex:1 1 380px;min-width:300px;display:flex;flex-direction:column;gap:18px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+        <div style="background:#f6fafd;border:1px solid #e4eef6;border-radius:18px;padding:22px">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#0369A1,var(--acc));display:flex;align-items:center;justify-content:center;margin-bottom:14px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012 4.2 2 2 0 014 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8 9.6a16 16 0 006 6l1.1-1.1a2 2 0 012.1-.5c.9.3 1.8.6 2.7.7A2 2 0 0122 16.9z"/></svg></div>
+          <div style="font-size:13px;font-weight:700;color:#8094a5;margin-bottom:3px">Call us</div>
+          <div style="font-size:16px;font-weight:800;color:#0A2540">9313140202</div>
+        </div>
+        <div style="background:#f6fafd;border:1px solid #e4eef6;border-radius:18px;padding:22px">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#0369A1,var(--acc));display:flex;align-items:center;justify-content:center;margin-bottom:14px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7 10-7"/></svg></div>
+          <div style="font-size:13px;font-weight:700;color:#8094a5;margin-bottom:3px">WhatsApp</div>
+          <div style="font-size:15px;font-weight:800;color:#0A2540;word-break:break-all">9910216834</div>
+        </div>
+        <div style="background:#f6fafd;border:1px solid #e4eef6;border-radius:18px;padding:22px">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#0369A1,var(--acc));display:flex;align-items:center;justify-content:center;margin-bottom:14px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+          <div style="font-size:13px;font-weight:700;color:#8094a5;margin-bottom:3px">Head office</div>
+          <div style="font-size:14px;font-weight:700;color:#0A2540;line-height:1.4">Beer Bazar, Gaurav Nagar,<br>Kirari Suleman Nagar, Delhi-110086</div>
+        </div>
+        <div style="background:#f6fafd;border:1px solid #e4eef6;border-radius:18px;padding:22px">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#0369A1,var(--acc));display:flex;align-items:center;justify-content:center;margin-bottom:14px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div style="font-size:13px;font-weight:700;color:#8094a5;margin-bottom:3px">Working hours</div>
+          <div style="font-size:14px;font-weight:700;color:#0A2540;line-height:1.4">10AM–2PM &amp; 3–7PM<br>Closed Tuesday</div>
+        </div>
+      </div>
+      <div style="flex:1;min-height:200px;border-radius:var(--r);overflow:hidden;border:1px solid #e4eef6;position:relative;background:linear-gradient(135deg,#dce9f4,#eaf3fa)">
+        <svg viewBox="0 0 600 260" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%">
+          <rect width="600" height="260" fill="#e7f0f8"/>
+          <path d="M0 80 Q200 50 320 90 T600 70" stroke="#cdddec" stroke-width="16" fill="none"/>
+          <path d="M0 180 Q220 150 340 190 T600 160" stroke="#cdddec" stroke-width="16" fill="none"/>
+          <path d="M180 0 Q160 130 220 180 T190 260" stroke="#cdddec" stroke-width="16" fill="none"/>
+          <path d="M420 0 Q440 120 380 200 T420 260" stroke="#cdddec" stroke-width="16" fill="none"/>
+        </svg>
+        <div style="position:absolute;left:46%;top:42%"><div style="width:22px;height:22px;border-radius:50%;background:#0369A1;border:4px solid #fff;box-shadow:0 6px 16px rgba(3,105,161,.5)"></div></div>
+        <a href="#" style="position:absolute;right:16px;bottom:16px;background:#fff;color:#0369A1;font-weight:700;font-size:13px;padding:9px 16px;border-radius:999px;box-shadow:0 10px 26px -12px rgba(0,0,0,.4)">Open in Maps</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FOOTER ===================== -->
+<footer style="{{ footerStyle }}">
+  <div style="max-width:1280px;margin:0 auto;padding:64px 28px 0">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:40px;padding-bottom:48px">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+          <div style="width:44px;height:44px;border-radius:13px;background:linear-gradient(145deg,#0369A1,var(--acc));display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M19 10v8M9 10v8M15 10v8"/><path d="M3 21h18"/></svg></div>
+          <div><div style="font-weight:800;font-size:15px;color:{{ footInk }};line-height:1.1">Shree Shyam Jan Kalyan</div><div style="font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:{{ footMute }}">Co-operative (U) Thrift &amp; Credit Society</div></div>
+        </div>
+        <p style="font-size:14px;line-height:1.7;color:{{ footMute }};margin:0 0 18px;max-width:280px">A member-owned urban co-operative thrift &amp; credit society in Kirari Suleman Nagar, Delhi. Registered 2025.</p>
+        <div style="display:flex;gap:10px">
+          <a href="#" aria-label="Facebook" style="width:36px;height:36px;border-radius:11px;background:{{ footChip }};display:flex;align-items:center;justify-content:center" data-hover="background:var(--acc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="{{ footInk }}"><path d="M14 8.5h2.2V5.3h-2.4C11.4 5.3 10 6.9 10 9.1v1.6H8v3.1h2V21h3v-7.2h2.3l.5-3.1H13V9.2c0-.5.3-.7.9-.7z"/></svg></a>
+          <a href="#" aria-label="Instagram" style="width:36px;height:36px;border-radius:11px;background:{{ footChip }};display:flex;align-items:center;justify-content:center" data-hover="background:var(--acc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{ footInk }}" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+          <a href="#" aria-label="LinkedIn" style="width:36px;height:36px;border-radius:11px;background:{{ footChip }};display:flex;align-items:center;justify-content:center" data-hover="background:var(--acc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="{{ footInk }}"><path d="M6.5 8.5h-3V20h3V8.5zM5 4a1.8 1.8 0 100 3.6A1.8 1.8 0 005 4zM20.5 20h-3v-6c0-1.5-.5-2.3-1.6-2.3-1 0-1.6.7-1.6 2.3v6h-3V8.5h3v1.3c.5-.8 1.5-1.5 2.8-1.5 2 0 3.4 1.3 3.4 4V20z"/></svg></a>
+          <a href="#" aria-label="YouTube" style="width:36px;height:36px;border-radius:11px;background:{{ footChip }};display:flex;align-items:center;justify-content:center" data-hover="background:var(--acc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="{{ footInk }}"><path d="M21.6 8.2a2.5 2.5 0 00-1.7-1.8C18.3 6 12 6 12 6s-6.3 0-7.9.4A2.5 2.5 0 002.4 8.2 26 26 0 002 12a26 26 0 00.4 3.8 2.5 2.5 0 001.7 1.8C5.7 18 12 18 12 18s6.3 0 7.9-.4a2.5 2.5 0 001.7-1.8A26 26 0 0022 12a26 26 0 00-.4-3.8zM10 15V9l5.2 3-5.2 3z"/></svg></a>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:{{ footInk }};margin-bottom:18px">Quick links</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <a href="#about" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">About Us</a>
+          <a href="#branches" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Branches</a>
+          <a href="#gallery" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Gallery</a>
+          <a href="#news" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">News &amp; Notices</a>
+          <a href="#contact" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Contact Us</a>
+          <a href="{{ member_login_url }}" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Member Login</a>
+          <a href="{{ admin_login_url }}" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Admin Login</a>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:{{ footInk }};margin-bottom:18px">Services</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <a href="#rates" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Fixed Deposits</a>
+          <a href="#rates" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Recurring Deposits</a>
+          <a href="#services" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Gold Loan</a>
+          <a href="#services" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Personal Loan</a>
+          <a href="#services" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Savings Account</a>
+          <a href="#services" style="font-size:14px;color:{{ footMute }}" data-hover="color:var(--acc2)">Insurance</a>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:{{ footInk }};margin-bottom:18px">Newsletter</div>
+        <p style="font-size:14px;line-height:1.6;color:{{ footMute }};margin:0 0 16px">Get rate updates and notices in your inbox.</p>
+        {% if newsSent %}
+          <div style="background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.4);color:#34d399;font-size:13.5px;font-weight:700;padding:13px 16px;border-radius:13px">✓ Subscribed — thank you!</div>
+        {% endif %}
+        {% if newsForm %}
+          <form style="display:flex;flex-direction:column;gap:10px">
+            <input required type="email" placeholder="Your email" style="background:{{ footChip }};border:1px solid {{ footBorder }};border-radius:12px;padding:13px 15px;color:{{ footInk }};font-size:14px;outline:none" style-focus="border-color:var(--acc)"/>
+            <button type="submit" style="background:linear-gradient(135deg,#0369A1,var(--acc));color:#fff;border:none;cursor:pointer;font-weight:700;font-size:14.5px;padding:13px;border-radius:12px" data-hover="transform:translateY(-2px)">Subscribe</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+    <div style="border-top:1px solid {{ footBorder }};padding:24px 0;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div style="font-size:13px;color:{{ footMute }}">© 2026 Shree Shyam Jan Kalyan Co-operative (U) Thrift &amp; Credit Society Ltd. · Reg. No. 10950/2025</div>
+      <div style="display:flex;gap:22px;flex-wrap:wrap">
+        <a href="#" style="font-size:13px;color:{{ footMute }}" data-hover="color:var(--acc2)">Privacy Policy</a>
+        <a href="#" style="font-size:13px;color:{{ footMute }}" data-hover="color:var(--acc2)">Terms</a>
+        <a href="#" style="font-size:13px;color:{{ footMute }}" data-hover="color:var(--acc2)">Grievance Redressal</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ===================== WHATSAPP FLOAT ===================== -->
+<a href="#" aria-label="Chat on WhatsApp" style="position:fixed;right:22px;bottom:22px;z-index:55;width:58px;height:58px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 16px 36px -10px rgba(37,211,102,.7)" data-hover="transform:scale(1.08)">
+  <svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm5.8 14.2c-.2.7-1.4 1.3-2 1.4-.5.1-1.2.1-1.9-.1-.4-.1-1-.3-1.8-.6-3-1.3-5-4.4-5.2-4.6-.1-.2-1.2-1.6-1.2-3s.7-2.1 1-2.4c.3-.3.6-.4.8-.4h.6c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.4.6c-.2.2-.3.4-.1.7.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.7-.9c.2-.3.4-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.2.1.9-.2 1.6z"/></svg>
+  <span style="position:absolute;inset:0;border-radius:50%;background:#25D366;opacity:.45;animation:floaty 1s ease-in-out infinite;z-index:-1"></span>
+</a>
+
+</div>
+
+<script src="{% static 'website/website.js' %}"></script>
+</body>
+</html>

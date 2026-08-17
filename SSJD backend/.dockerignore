@@ -1,0 +1,23 @@
+# Virtualenvs
+linux_backend_env/
+env/
+venv/
+*_env/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Secrets & local config (pass via compose env_file / -e instead)
+.env
+
+# Logs & local artifacts
+logs/
+*.log
+
+# VCS / editor
+.git/
+.gitignore
+.vscode/
+.idea/
